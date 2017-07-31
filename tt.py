@@ -135,9 +135,9 @@ def list_projects():
 
     if len(p) == 0:
         print("No projects found.")
-        #print("Create a new project with", bcolors.YELLOW, "ap project name", bcolors.END, "first.")
     else:
-        print("Found {num} projects:\n{p}".format(num=len(p), p=p))
+        for project_id, project_name in p.items():
+            print("    {i:>3}   {n}".format(i=project_id, n=project_name))
 
 def add_project():
     if len(sys.argv) < 3:
