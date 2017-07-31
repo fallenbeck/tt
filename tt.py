@@ -16,6 +16,7 @@ if not str(sys.version).startswith("3"):
 # Import stuff we need
 import json
 import os
+import time
 
 # Set variables we need
 n = "tymetracker/tt"
@@ -190,16 +191,61 @@ def del_project():
         print("Project {pid} not found".format(pid=project_id))
         sys.exit(12)
     else:
-        project_name = data["projects"][project_id]["name"]
         del data["projects"][project_id]
         save(data)
-        print("Project {name} deleted".format(name=project_name))
+        print("Project {name} deleted".format(name=_get_project_name(data, project_id)))
+
+def _get_project_name(data, project_id):
+    try:
+        return data["projects"][project_id]["name"]
+    except:
+        return None
 
 def start_tracking():
-    pass
+    if len(sys.argv) < 3:
+        print("You must specify a project id")
+        sys.exit(20)
+
+    project_id = sys.argv[2]
+
+    data = load()
+    if data["tracking"]["active"]:
+        print("Tracker already started")
+        sys.exit(21)
+
+    data["tracking"]["active"] = True
+    data["tracking"]["project"] = project_id
+    # TODO: Use better time format
+    data["tracking"]["started"] = time.time()
+
+    save(data)
+    print("Tracker started for project {name}".format(name=_get_project_name(data, project_id)))
+
 
 def stop_tracking():
-    pass
+    data = load()
+    if not data["tracking"]["active"]:
+        print("Tracker not active")
+        sys.exit(22)
+
+    project_id = data["tracking"]["project"]
+    started = data["tracking"]["started"]
+    stopped = time.time()
+    diff = stopped - started
+
+    # add tuple to history
+    history = data["projects"][project_id]["history"]
+    history.append( (started, stopped, diff) )
+    data["projects"][project_id]["history"] = history
+
+    # reset tracking settings
+    data["tracking"]["active"] = False
+    data["tracking"]["project"] = None
+    data["tracking"]["started"] = None
+
+    save(data)
+    print("Tracker stopped for project {name} after {duration}".format(name=_get_project_name(data, project_id), duration=diff))
+
 
 def show():
     pass
@@ -223,6 +269,10 @@ def main():
         add_project()
     elif sys.argv[1].lower() == "dp":
         del_project()
+    elif sys.argv[1].lower() == "start":
+        start_tracking()
+    elif sys.argv[1].lower() == "stop":
+        stop_tracking()
     else:
         usage()
 
