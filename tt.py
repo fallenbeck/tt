@@ -66,7 +66,7 @@ def init():
         save(data)
 
 def status():
-    """Display some information about the current status of te software
+    """Display some information about the current status of the software
     """
     data = load()
     if not data["tracking"]["active"]:
