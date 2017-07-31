@@ -7,7 +7,11 @@
 datafile = "~/.tymetracker.json"
 dateformat = ""
 
-### Here be dragons
+
+#############################################################################
+### Here be dragons!
+#############################################################################
+
 # Sanity check: only proceed if we are in a python3 environment
 import sys
 try:
@@ -23,8 +27,13 @@ import os
 import time
 
 # Set variables we need
-n = "tymetracker/tt"
 f = os.path.abspath(os.path.expanduser(datafile))
+
+
+
+#############################################################################
+### Helper functions
+#############################################################################
 
 class bcolors:
     """Define some colors that can be used in the terminal.
@@ -38,9 +47,116 @@ class bcolors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
+
+def _get_project_name(data, project_id):
+    """Get a project's name.
+    """
+    try:
+        return data["projects"][project_id]["name"]
+    except:
+        return None
+
+
+def _timestamp():
+    """Return a timestamp.
+    This timestamp is crucial since it is used in the JSON file to store
+    the beginning and end of the the time periods.
+    We use the ISO format to ensure that humans can read (and modify) the
+    values manually if needed.
+    """
+    # >= Python 3.6
+    #return datetime.datetime.now().isoformat(timespec='seconds')
+    # <= Python 3.5
+    return datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+
+
+def _time_diff(started, stopped):
+    """calculates the difference between to datetimes.
+    Returns a 3-tuple containing
+        seconds as float (e.g., 23132.0 seconds)
+        hour_frac as float (e.g., 0.3455353 hours)
+        hhmm as string (e.g., 01:23)
+    You can display what the user wants to see.
+    """
+    #a = time.mktime(time.strptime(started, '%Y-%m-%dT%H:%M:%S'))
+    #b = time.mktime(time.strptime(stopped, '%Y-%m-%dT%H:%M:%S'))
+    a = datetime.datetime.strptime(started, '%Y-%m-%dT%H:%M:%S')
+    b = datetime.datetime.strptime(stopped, '%Y-%m-%dT%H:%M:%S')
+    c = b - a
+    seconds = c.total_seconds()
+    hour_frac = seconds / 3600
+    hhmm = "{h:02}:{m:02}".format(h=c.seconds//3600, m=(c.seconds//60)%60)
+
+    # return tuple
+    return (seconds, hour_frac, hhmm)
+
+
+def _to_day(isodateformat):
+    """Return the day from an ISO-formatted date.
+    Given a timestamp, the day will be returned in the format YYYY-mm-dd.
+    """
+    return datetime.datetime.strptime(isodateformat, '%Y-%m-%dT%H:%M:%S').strftime('%Y-%m-%d')
+
+
+def _to_time(isodateformat):
+    """Return the time from an ISO-formatted date.
+    Given a timestamp, the time will be returned in the format HH:MM.
+    """
+    return datetime.datetime.strptime(isodateformat, '%Y-%m-%dT%H:%M:%S').strftime('%H:%M')
+
+
+
+
+#############################################################################
+### Data file functions
+#############################################################################
+
+def load():
+    """Load the JSON datafile and return a dict with all the values.
+    """
+    try:
+        fp = open(f, "r")
+        data = json.load(fp)
+        fp.close()
+    except FileNotFoundError as e:
+        print("Could not load data file. Please run", bcolors.YELLOW, "init", bcolors.END, "first.")
+        sys.exit(3)
+    except Exception as e:
+        print(e)
+        sys.exit(4)
+
+    if data is None:
+        print("Read corrupt data from", f)
+        sys.exit(5)
+
+    return data
+
+def save(data):
+    """Write the data dict object to disk in JSON format.
+    """
+    if data is not None:
+        try:
+            fp = open(f, "w")
+            json.dump(data, fp, indent=2)
+            fp.flush()
+            fp.close()
+        except Exception as e:
+            print(e)
+            sys.exit(7)
+    else:
+        print("No data to write")
+
+
+
+#############################################################################
+### Generic functions
+#############################################################################
+
 def init():
-    '''Initialize a new datafile.
-    '''
+    """Initialize a new datafile if it does not exist.
+    Cannot overwrite existing datafile, needs to be manually
+    deleted beforehand.
+    """
     if os.path.isfile(f):
         print("Data file {} already exists".format(f))
         sys.exit(2)
@@ -69,8 +185,11 @@ def init():
         # ... and write it to data file
         save(data)
 
+
 def status():
-    """Display some information about the current status of the software
+    """Display some information about the current state. If the tracker
+    is active this function displays a brief summary of the recent
+    work period.
     """
     data = load()
     if not data["tracking"]["active"]:
@@ -82,36 +201,6 @@ def status():
         _, hf, hhmm = _time_diff(since, _timestamp())
         print("Tracking time in project {name}: {hhmm} ({hf:0.2f} hours)".format(name=project_name, hf=hf, hhmm=hhmm))
 
-def load():
-    try:
-        fp = open(f, "r")
-        data = json.load(fp)
-        fp.close()
-    except FileNotFoundError as e:
-        print("Could not load data file. Please run", bcolors.YELLOW, "init", bcolors.END, "first.")
-        sys.exit(3)
-    except Exception as e:
-        print(e)
-        sys.exit(4)
-
-    if data is None:
-        print("Read corrupt data from", f)
-        sys.exit(5)
-
-    return data
-
-def save(data):
-    if data is not None:
-        try:
-            fp = open(f, "w")
-            json.dump(data, fp, indent=2)
-            fp.flush()
-            fp.close()
-        except Exception as e:
-            print(e)
-            sys.exit(7)
-    else:
-        print("No data to write")
 
 def usage():
     """Print the list of commands that are supported. This function is
@@ -149,7 +238,15 @@ def usage():
             if command is not "DESC":
                 print(bcolors.YELLOW, "    {cmd:20s}".format(cmd=command), bcolors.END, description)
 
+
+
+#############################################################################
+### Projects
+#############################################################################
+
 def list_projects():
+    """Print all existing projects.
+    """
     data = load()
     p = data.get("projects", {})
 
@@ -159,7 +256,12 @@ def list_projects():
         for project_id, project_data in sorted(p.items()):
             print("    {i:>3}   {n}".format(i=project_id, n=project_data["name"]))
 
+
 def add_project():
+    """Add a project.
+    You need to specify a project name. The project name can contain spaces.
+    When created, this function prints the id of the created project.
+    """
     if len(sys.argv) < 3:
         print("You must specify a project name")
         sys.exit(10)
@@ -183,7 +285,11 @@ def add_project():
 
     print("Created project \"{name}\" with id {i}".format(name=name, i=project_id))
 
+
 def del_project():
+    """Delete a project.
+    You need to specify a project id.
+    """
     if len(sys.argv) < 3:
         print("You must specify a project id")
         sys.exit(11)
@@ -199,13 +305,18 @@ def del_project():
         save(data)
         print("Project {name} deleted".format(name=_get_project_name(data, project_id)))
 
-def _get_project_name(data, project_id):
-    try:
-        return data["projects"][project_id]["name"]
-    except:
-        return None
+
+
+#############################################################################
+### Time tracking
+#############################################################################
 
 def start_tracking():
+    """Starts a tracker for a given project.
+    You must specify a project id when starting a tracker. The recorded
+    time will be stored in the particular project's context.
+    If a tracker is alreay active, an error will be displayed.
+    """
     if len(sys.argv) < 3:
         print("You must specify a project id")
         sys.exit(20)
@@ -227,6 +338,10 @@ def start_tracking():
 
 
 def stop_tracking():
+    """Stop a running tracker.
+    No need to specify a project id (will be ignored). If no active tracker
+    is found, an error is printed to the console.
+    """
     data = load()
     if not data["tracking"]["active"]:
         print("Tracker not active")
@@ -251,26 +366,14 @@ def stop_tracking():
     print("Tracker stopped for project {name} after {duration} ({hf:1.2f} hours)".format(name=_get_project_name(data, project_id), duration=hhmm, hf=hf))
 
 
-def _time_diff(started, stopped):
-    #a = time.mktime(time.strptime(started, '%Y-%m-%dT%H:%M:%S'))
-    #b = time.mktime(time.strptime(stopped, '%Y-%m-%dT%H:%M:%S'))
-    a = datetime.datetime.strptime(started, '%Y-%m-%dT%H:%M:%S')
-    b = datetime.datetime.strptime(stopped, '%Y-%m-%dT%H:%M:%S')
-    c = b - a
-    seconds = c.total_seconds()
-    hour_frac = seconds / 3600
-    hhmm = "{h:02}:{m:02}".format(h=c.seconds//3600, m=(c.seconds//60)%60)
-
-    # return tuple
-    return (seconds, hour_frac, hhmm)
-
-def _to_day(isodateformat):
-    return datetime.datetime.strptime(isodateformat, '%Y-%m-%dT%H:%M:%S').strftime('%Y-%m-%d')
-
-def _to_time(isodateformat):
-    return datetime.datetime.strptime(isodateformat, '%Y-%m-%dT%H:%M:%S').strftime('%H:%M')
-
 def show():
+    """Show the recorded times for a particular project.
+    You must specify a project id. As a result, a list of all recorded times
+    will be printed to the console in the following format:
+        Day           Started  Stopped  Time recorded
+    ------------------------------------------------------------------------------
+        2017-07-31    23:36    23:48    00:11  (0.20 hours)
+    """
     if len(sys.argv) < 3:
         print("You must specify a project id")
         sys.exit(20)
@@ -306,41 +409,34 @@ def show():
         print("    {sd}{started:9}{stopped:9}{hhmm:7}({hf:1.2f} hours)".format(sd=str_day, started=time_started, stopped=time_stopped, hhmm=hhmm, hf=hf))
         old_day = day
 
-def report():
-    print("Not yet implemented")
-    pass
-
-def _timestamp():
-    # >= Python 3.6
-    #return datetime.datetime.now().isoformat(timespec='seconds')
-    # <= Python 3.5
-    return datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-
-def main():
-    """Main function that handles the run of tymetracker.
-    Parses the arguments and calls the appropriate functions.
-    """
-    if len(sys.argv) <= 1:
-        usage()
-    elif sys.argv[1].lower() == "init":
-        init()
-    elif sys.argv[1].lower() == "status":
-        status()
-    elif sys.argv[1].lower() == "lp":
-        list_projects()
-    elif sys.argv[1].lower() == "ap":
-        add_project()
-    elif sys.argv[1].lower() == "dp":
-        del_project()
-    elif sys.argv[1].lower() == "start":
-        start_tracking()
-    elif sys.argv[1].lower() == "stop":
-        stop_tracking()
-    elif sys.argv[1].lower() == "show":
-        show()
-    else:
-        usage()
 
 
-# Starting here
-main()
+#############################################################################
+### Entry point
+#############################################################################
+
+"""Main function/entry point when starting the program.
+Parses the arguments and calls the appropriate functions.
+"""
+if len(sys.argv) <= 1:
+    usage()
+elif sys.argv[1].lower() == "init":
+    init()
+elif sys.argv[1].lower() == "status":
+    status()
+elif sys.argv[1].lower() == "lp":
+    list_projects()
+elif sys.argv[1].lower() == "ap":
+    add_project()
+elif sys.argv[1].lower() == "dp":
+    del_project()
+elif sys.argv[1].lower() == "start":
+    start_tracking()
+elif sys.argv[1].lower() == "stop":
+    stop_tracking()
+elif sys.argv[1].lower() == "show":
+    show()
+else:
+    usage()
+
+# eof. thank you.
