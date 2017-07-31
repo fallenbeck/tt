@@ -5,7 +5,7 @@
 # records in a json data structure in the user's home directory.
 #
 datafile = "~/.tymetracker.json"
-dateformat = ""
+dateformat = "%Y-%m-%dT%H:%M:%S"
 
 
 #############################################################################
@@ -67,7 +67,7 @@ def _timestamp():
     # >= Python 3.6
     #return datetime.datetime.now().isoformat(timespec='seconds')
     # <= Python 3.5
-    return datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+    return datetime.datetime.now().strftime(dateformat)
 
 
 def _time_diff(started, stopped):
@@ -80,8 +80,8 @@ def _time_diff(started, stopped):
     """
     #a = time.mktime(time.strptime(started, '%Y-%m-%dT%H:%M:%S'))
     #b = time.mktime(time.strptime(stopped, '%Y-%m-%dT%H:%M:%S'))
-    a = datetime.datetime.strptime(started, '%Y-%m-%dT%H:%M:%S')
-    b = datetime.datetime.strptime(stopped, '%Y-%m-%dT%H:%M:%S')
+    a = datetime.datetime.strptime(started, dateformat)
+    b = datetime.datetime.strptime(stopped, dateformat)
     c = b - a
     seconds = c.total_seconds()
     hour_frac = seconds / 3600
@@ -95,14 +95,14 @@ def _to_day(isodateformat):
     """Return the day from an ISO-formatted date.
     Given a timestamp, the day will be returned in the format YYYY-mm-dd.
     """
-    return datetime.datetime.strptime(isodateformat, '%Y-%m-%dT%H:%M:%S').strftime('%Y-%m-%d')
+    return datetime.datetime.strptime(isodateformat, dateformat).strftime('%Y-%m-%d')
 
 
 def _to_time(isodateformat):
     """Return the time from an ISO-formatted date.
     Given a timestamp, the time will be returned in the format HH:MM.
     """
-    return datetime.datetime.strptime(isodateformat, '%Y-%m-%dT%H:%M:%S').strftime('%H:%M')
+    return datetime.datetime.strptime(isodateformat, dateformat).strftime('%H:%M')
 
 
 
