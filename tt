@@ -76,7 +76,8 @@ def status():
         since = data["tracking"]["started"]
         project_id = data["tracking"]["project"]
         project_name = data["projects"][project_id]["name"]
-        print("Tracking time in project {name} since {date}".format(name=project_name, date=since))
+        _, hf, hhmm = _time_diff(since, _timestamp())
+        print("Tracking time in project {name}: {hhmm} ({hf:0.2f} hours)".format(name=project_name, hf=hf, hhmm=hhmm))
 
 def load():
     try:
@@ -245,7 +246,6 @@ def stop_tracking():
     data["tracking"]["started"] = None
 
     save(data)
-    print(_time_diff(started, stopped))
     print("Tracker stopped for project {name} after {duration} ({hf:1.2f} hours)".format(name=_get_project_name(data, project_id), duration=hhmm, hf=hf))
 
 
