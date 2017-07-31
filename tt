@@ -5,6 +5,7 @@
 # records in a json data structure in the user's home directory.
 #
 datafile = "~/.tymetracker.json"
+dateformat = ""
 
 ### Here be dragons
 # Sanity check: only proceed if we are in a python3 environment
@@ -132,7 +133,6 @@ def usage():
                 "start 23": "Starts time tracking for project id 23",
                 "stop": "Stops active time tracking",
                 "show 23": "Show tracked times for project 23",
-                "rep 23": "Show a report for project 23",
                 }
             }
 
@@ -338,8 +338,6 @@ def main():
         stop_tracking()
     elif sys.argv[1].lower() == "show":
         show()
-    elif sys.argv[1].lower() == "report":
-        report()
     else:
         usage()
 
