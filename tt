@@ -237,7 +237,7 @@ def stop_tracking():
 
     # add tuple to history
     history = data["projects"][project_id]["history"]
-    history.append( (started, stopped, diff) )
+    history.append( (started, stopped) )
     data["projects"][project_id]["history"] = history
 
     # reset tracking settings
