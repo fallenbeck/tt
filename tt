@@ -14,6 +14,7 @@ if not str(sys.version).startswith("3"):
     sys.exit(1)
 
 # Import stuff we need
+import datetime
 import json
 import os
 import time
@@ -91,7 +92,7 @@ def load():
 
     if data is None:
         print("Read corrupt data from", f)
-        sys.exit(6)
+        sys.exit(5)
 
     return data
 
@@ -104,7 +105,7 @@ def save(data):
             fp.close()
         except Exception as e:
             print(e)
-            sys.exit(5)
+            sys.exit(7)
     else:
         print("No data to write")
 
@@ -216,7 +217,7 @@ def start_tracking():
     data["tracking"]["active"] = True
     data["tracking"]["project"] = project_id
     # TODO: Use better time format
-    data["tracking"]["started"] = time.time()
+    data["tracking"]["started"] = _timestamp()
 
     save(data)
     print("Tracker started for project {name}".format(name=_get_project_name(data, project_id)))
@@ -230,8 +231,8 @@ def stop_tracking():
 
     project_id = data["tracking"]["project"]
     started = data["tracking"]["started"]
-    stopped = time.time()
-    diff = stopped - started
+    stopped = _timestamp()
+    diff, hf, hhmm = _time_diff(started, stopped)
 
     # add tuple to history
     history = data["projects"][project_id]["history"]
@@ -244,7 +245,22 @@ def stop_tracking():
     data["tracking"]["started"] = None
 
     save(data)
-    print("Tracker stopped for project {name} after {duration}".format(name=_get_project_name(data, project_id), duration=diff))
+    print(_time_diff(started, stopped))
+    print("Tracker stopped for project {name} after {duration} ({hf:1.2f} hours)".format(name=_get_project_name(data, project_id), duration=hhmm, hf=hf))
+
+
+def _time_diff(started, stopped):
+    #a = time.mktime(time.strptime(started, '%Y-%m-%dT%H:%M:%S'))
+    #b = time.mktime(time.strptime(stopped, '%Y-%m-%dT%H:%M:%S'))
+    a = datetime.datetime.strptime(started, '%Y-%m-%dT%H:%M:%S')
+    b = datetime.datetime.strptime(stopped, '%Y-%m-%dT%H:%M:%S')
+    c = b - a
+    seconds = c.total_seconds()
+    hour_frac = seconds / 3600
+    hhmm = "{h:02}:{m:02}".format(h=c.seconds//3600, m=(c.seconds//60)%60)
+
+    # return tuple
+    return (seconds, hour_frac, hhmm)
 
 
 def show():
@@ -252,6 +268,12 @@ def show():
 
 def report():
     pass
+
+def _timestamp():
+    # >= Python 3.6
+    #return datetime.datetime.now().isoformat(timespec='seconds')
+    # <= Python 3.5
+    return datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 
 def main():
     """Main function that handles the run of tymetracker.
