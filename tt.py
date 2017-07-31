@@ -54,8 +54,10 @@ def init():
                     "started": None,
                     },
                 "projects": {
+                    #id:    {
                         # "name": Projektname,
                         # "history": [] # tuples (start, stop, mins)
+                    # }
                     },
                 }
 
@@ -136,8 +138,8 @@ def list_projects():
     if len(p) == 0:
         print("No projects found.")
     else:
-        for project_id, project_name in sorted(p.items()):
-            print("    {i:>3}   {n}".format(i=project_id, n=project_name))
+        for project_id, project_data in sorted(p.items()):
+            print("    {i:>3}   {n}".format(i=project_id, n=project_data["name"]))
 
 def add_project():
     if len(sys.argv) < 3:
@@ -147,14 +149,38 @@ def add_project():
     name = " ".join(sys.argv[2:]).strip()
 
     data = load()
+
+    project = {}
     project_id = int(data["meta"].get("last_id", 0)) + 1
+    project["name"] = name
+    project["history"] = []
+
     projects = data.get("projects", {})
-    projects[project_id] = name
+    projects[project_id] = project
+
     data["meta"]["last_id"] = project_id
     data["projects"] = projects
+
     save(data)
 
     print("Created project \"{name}\" with id {i}".format(name=name, i=project_id))
+
+def del_project():
+    if len(sys.argv) < 3:
+        print("You must specify a project id")
+        sys.exit(11)
+
+    project_id = sys.argv[2]
+
+    data = load()
+    if project_id not in data.get("projects", {}):
+        print("Project {pid} not found".format(pid=project_id))
+        sys.exit(12)
+    else:
+        project_name = data["projects"][project_id]["name"]
+        del data["projects"][project_id]
+        save(data)
+        print("Project {name} deleted".format(name=project_name))
 
 
 def main():
@@ -169,6 +195,8 @@ def main():
         list_projects()
     elif sys.argv[1].lower() == "ap":
         add_project()
+    elif sys.argv[1].lower() == "dp":
+        del_project()
     else:
         usage()
 
