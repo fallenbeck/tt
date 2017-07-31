@@ -54,7 +54,7 @@ def init():
                     "started": None,
                     },
                 "projects": {
-                    #id:    {
+                    # id:    {
                         # "name": Projektname,
                         # "history": [] # tuples (start, stop, mins)
                     # }
