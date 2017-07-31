@@ -64,6 +64,18 @@ def init():
         # ... and write it to data file
         save(data)
 
+def status():
+    """Display some information about the current status of te software
+    """
+    data = load()
+    if not data["tracking"]["active"]:
+        print("No active time tracking")
+    else:
+        since = data["tracking"]["started"]
+        project_id = data["tracking"]["project"]
+        project_name = data["projects"][project_id]["name"]
+        print("Tracking time in project {name} since {date}".format(name=project_name, date=since))
+
 def load():
     try:
         fp = open(f, "r")
@@ -102,6 +114,7 @@ def usage():
     group = {
             "Generic commands": {
                 "init": "Initialize new data file",
+                "status": "Display status information",
                 },
             "Projects": {
                 #"DESC": "Projects are needed for time tracking",
@@ -191,6 +204,8 @@ def main():
         usage()
     elif sys.argv[1].lower() == "init":
         init()
+    elif sys.argv[1].lower() == "status":
+        status()
     elif sys.argv[1].lower() == "lp":
         list_projects()
     elif sys.argv[1].lower() == "ap":
