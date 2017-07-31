@@ -9,7 +9,9 @@ datafile = "~/.tymetracker.json"
 ### Here be dragons
 # Sanity check: only proceed if we are in a python3 environment
 import sys
-if not str(sys.version).startswith("3"):
+try:
+    assert sys.version_info >= (3,0)
+except:
     print("Python 3 is required to run tymetracker/tt.")
     sys.exit(1)
 
