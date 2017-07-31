@@ -195,6 +195,17 @@ def del_project():
         save(data)
         print("Project {name} deleted".format(name=project_name))
 
+def start_tracking():
+    pass
+
+def stop_tracking():
+    pass
+
+def show():
+    pass
+
+def report():
+    pass
 
 def main():
     """Main function that handles the run of tymetracker.
