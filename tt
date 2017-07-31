@@ -99,7 +99,7 @@ def save(data):
     if data is not None:
         try:
             fp = open(f, "w")
-            json.dump(data, fp)
+            json.dump(data, fp, indent=2)
             fp.flush()
             fp.close()
         except Exception as e:
