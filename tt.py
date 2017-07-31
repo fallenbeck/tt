@@ -136,7 +136,7 @@ def list_projects():
     if len(p) == 0:
         print("No projects found.")
     else:
-        for project_id, project_name in p.items():
+        for project_id, project_name in sorted(p.items()):
             print("    {i:>3}   {n}".format(i=project_id, n=project_name))
 
 def add_project():
