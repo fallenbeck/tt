@@ -44,7 +44,19 @@ def init():
 
         # Initialize new data dict
         data = {
-                "projects": {},
+                "meta": {
+                    "last_id": 0,
+                    "file_version": 1,
+                    },
+                "tracking": {
+                    "active": False,
+                    "project": None,
+                    "started": None,
+                    },
+                "projects": {
+                        # "name": Projektname,
+                        # "history": [] # tuples (start, stop, mins)
+                    },
                 }
 
         # ... and write it to data file
@@ -133,13 +145,16 @@ def add_project():
         sys.exit(10)
 
     name = " ".join(sys.argv[2:]).strip()
+
     data = load()
+    project_id = int(data["meta"].get("last_id", 0)) + 1
     projects = data.get("projects", {})
-    # TODO: create unique ID for project
-    projects[1] = name
+    projects[project_id] = name
+    data["meta"]["last_id"] = project_id
     data["projects"] = projects
-    print(data)
     save(data)
+
+    print("Created project \"{name}\" with id {i}".format(name=name, i=project_id))
 
 
 def main():
