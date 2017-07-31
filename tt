@@ -91,20 +91,15 @@ def _time_diff(started, stopped):
     return (seconds, hour_frac, hhmm)
 
 
-def _to_day(isodateformat):
-    """Return the day from an ISO-formatted date.
-    Given a timestamp, the day will be returned in the format YYYY-mm-dd.
+def _to_day_and_time(isodateformat):
+    """Return the day and the time from an ISO-formatted date.
+    Given a timestamp, the day and the time will be returned as a 2-tuple with
+    the day in format YYYY-mm-dd as first element and the time in format HH:MM
+    as the second element of the tuple.
     """
-    return datetime.datetime.strptime(isodateformat, dateformat).strftime('%Y-%m-%d')
-
-
-def _to_time(isodateformat):
-    """Return the time from an ISO-formatted date.
-    Given a timestamp, the time will be returned in the format HH:MM.
-    """
-    return datetime.datetime.strptime(isodateformat, dateformat).strftime('%H:%M')
-
-
+    day = datetime.datetime.strptime(isodateformat, dateformat).strftime('%Y-%m-%d')
+    time = datetime.datetime.strptime(isodateformat, dateformat).strftime('%H:%M')
+    return (day, time)
 
 
 #############################################################################
@@ -399,9 +394,8 @@ def show():
     for item in sorted(history):
         started, stopped = item
         secs, hf, hhmm = _time_diff(started, stopped)
-        day = _to_day(started)
-        time_started = _to_time(started)
-        time_stopped = _to_time(stopped)
+        day, time_started = _to_day_and_time(started)
+        _, time_stopped = _to_day_and_time(stopped)
         str_day = "{day:14}".format(day=day)
         if day == old_day:
             str_day = " "*14
