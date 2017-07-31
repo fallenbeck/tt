@@ -24,7 +24,6 @@ except:
 import datetime
 import json
 import os
-import time
 
 # Set variables we need
 f = os.path.abspath(os.path.expanduser(datafile))
@@ -64,9 +63,6 @@ def _timestamp():
     We use the ISO format to ensure that humans can read (and modify) the
     values manually if needed.
     """
-    # >= Python 3.6
-    #return datetime.datetime.now().isoformat(timespec='seconds')
-    # <= Python 3.5
     return datetime.datetime.now().strftime(dateformat)
 
 
@@ -78,8 +74,6 @@ def _time_diff(started, stopped):
         hhmm as string (e.g., 01:23)
     You can display what the user wants to see.
     """
-    #a = time.mktime(time.strptime(started, '%Y-%m-%dT%H:%M:%S'))
-    #b = time.mktime(time.strptime(stopped, '%Y-%m-%dT%H:%M:%S'))
     a = datetime.datetime.strptime(started, dateformat)
     b = datetime.datetime.strptime(stopped, dateformat)
     c = b - a
@@ -100,6 +94,7 @@ def _to_day_and_time(isodateformat):
     day = datetime.datetime.strptime(isodateformat, dateformat).strftime('%Y-%m-%d')
     time = datetime.datetime.strptime(isodateformat, dateformat).strftime('%H:%M')
     return (day, time)
+
 
 
 #############################################################################
@@ -125,6 +120,7 @@ def load():
         sys.exit(5)
 
     return data
+
 
 def save(data):
     """Write the data dict object to disk in JSON format.
@@ -325,7 +321,6 @@ def start_tracking():
 
     data["tracking"]["active"] = True
     data["tracking"]["project"] = project_id
-    # TODO: Use better time format
     data["tracking"]["started"] = _timestamp()
 
     save(data)
