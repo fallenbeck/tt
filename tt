@@ -262,11 +262,50 @@ def _time_diff(started, stopped):
     # return tuple
     return (seconds, hour_frac, hhmm)
 
+def _to_day(isodateformat):
+    return datetime.datetime.strptime(isodateformat, '%Y-%m-%dT%H:%M:%S').strftime('%Y-%m-%d')
+
+def _to_time(isodateformat):
+    return datetime.datetime.strptime(isodateformat, '%Y-%m-%dT%H:%M:%S').strftime('%H:%M')
 
 def show():
-    pass
+    if len(sys.argv) < 3:
+        print("You must specify a project id")
+        sys.exit(20)
+
+    project_id = sys.argv[2]
+
+    data = load()
+    history = data["projects"][project_id]["history"]
+
+    if len(history) == 0:
+        print("No entries")
+        return
+
+    old_day = ""
+    
+    # Headlines
+    col1 = "Day"
+    col2 = "Started"
+    col3 = "Stopped"
+    col4 = "Time recorded"
+    print("    {c1:14}{c2:9}{c3:9}{c4:7}".format(c1=col1, c2=col2, c3=col3, c4=col4))
+    print("-"*78)
+    for item in sorted(history):
+        started, stopped, _ = item
+        secs, hf, hhmm = _time_diff(started, stopped)
+        day = _to_day(started)
+        time_started = _to_time(started)
+        time_stopped = _to_time(stopped)
+        str_day = "{day:14}".format(day=day)
+        if day == old_day:
+            str_day = " "*14
+        
+        print("    {sd}{started:9}{stopped:9}{hhmm:7}({hf:1.2f} hours)".format(sd=str_day, started=time_started, stopped=time_stopped, hhmm=hhmm, hf=hf))
+        old_day = day
 
 def report():
+    print("Not yet implemented")
     pass
 
 def _timestamp():
@@ -295,6 +334,10 @@ def main():
         start_tracking()
     elif sys.argv[1].lower() == "stop":
         stop_tracking()
+    elif sys.argv[1].lower() == "show":
+        show()
+    elif sys.argv[1].lower() == "report":
+        report()
     else:
         usage()
 
