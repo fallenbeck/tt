@@ -294,7 +294,7 @@ def show():
     print("    {c1:14}{c2:9}{c3:9}{c4:7}".format(c1=col1, c2=col2, c3=col3, c4=col4))
     print("-"*78)
     for item in sorted(history):
-        started, stopped, _ = item
+        started, stopped = item
         secs, hf, hhmm = _time_diff(started, stopped)
         day = _to_day(started)
         time_started = _to_time(started)
