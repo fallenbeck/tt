@@ -1,17 +1,16 @@
-Time tracker for the command line: tymetracker/tt
+tt is a time tracker for the command line.
 
 
 Introduction
 ============
 I looked around for a time tracking tool that can be used from the command line
 independent from the computer I use. I did not find any solution I wanted to 
-use over a longer period, and furthermore I was motivated to hack away a small
-tool that fits my needs.
-That said, tt is tailored for my (very basic) needs: Keep an eye on my working
-time when I work from home and to track time whenever I work on one of my side
-projects. Until now, I used a macOS-only solution called Tyme2. I liked it a
-lot and wanted to have something comparable on the shell using an open and
-human-readable file format.
+use over a longer period.
+That said, tt is tailored for my (very basic) needs: To keep an eye on my
+working hours when I am in home office and to track time whenever I work on one
+of my side projects. Until now, I used a macOS-only solution called Tyme2. I
+liked it a lot and wanted to have something comparable on the shell using an
+open and human-readable file format.
 
 
 Installation
@@ -19,18 +18,19 @@ Installation
 I tried to keep tt as simple as possible. It has been written in Python 3 but
 does not have any external dependencies so far. This makes the installation
 easy as long as you have Python 3 (not 2!) installed on your machine:
-	1. Clone the project or download it as an archive and unpack it
-	2. Move the tt.py file to some location existing in your PATH
-	3. If you don't like the name: rename the file or create a symlink
+  1. Clone the project or download it as an archive and unpack it
+  2. Move the tt file to some location existing in your PATH
+     (or create a symlink)
+  3. If you don't like the name: rename the file or create a symlink
 
 
 Frequently Asked Questions
 ==========================
 
-I don't like the name tt.py
----------------------------
+I don't like the name tt
+------------------------
 You are free to rename it or create a symlink with some name you really like.
-Really, this should not cause any problems.
+This should not cause any problems.
 
 I don't like the data file's name
 ---------------------------------
@@ -39,13 +39,13 @@ source software for exactly that reason (and others...)
 
 I found a bug!
 --------------
-Great. I would be happy to hear about that. You can either contact my via
+Great. I would be happy to hear from you. You can either contact me via
 GitHub or - even better - you can fix the bug and send a pull request that
 allows me to merge your fix into the main branch.
 
 I want to use tt on several computers, how can I synchronize the data?
 ----------------------------------------------------------------------
-Actually, this is also my use case. I start with init a new datafile on one
+Actually, this is also my use case. I initialize a new datafile on one
 of my computers, move it to my Dropbox folder and create a symlink in my
 home directory pointing to this file. I create this symlink on all machines
 where I want to use tt:
@@ -57,7 +57,9 @@ Yes, you can use other synchronization tools as well.
 
 I want to use my phone as time tracking device. Is there an app?
 ----------------------------------------------------------------
-Hipsters.
+Hipster.
+But you can create a virtual machine at Amazon, install your favorite
+operating system and run tt via SSH.
 
 
 Contact
