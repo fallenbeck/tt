@@ -365,40 +365,52 @@ def show():
     ------------------------------------------------------------------------------
         2017-07-31    23:36    23:48    00:11  (0.20 hours)
     """
+    data = load()
+    project_ids = list() # list of project ids to display
+    first = True
+
     if len(sys.argv) < 3:
+        # no project ID given, get list of all available project IDs
+        project_ids = data["projects"].keys() 
+    elif len(sys.argv) == 3:
+        # project ID given, use it
+        project_ids = sys.argv[2].split()
+    else:
+        # too many arguments, throw an error
         print("You must specify a project id")
         sys.exit(20)
 
-    project_id = sys.argv[2]
+    for project_id in project_ids:
+        if first:
+            first = False
+        else:
+            print()
 
-    data = load()
-    history = data["projects"][project_id]["history"]
-
-    if len(history) == 0:
-        print("No entries")
-        return
-
-    old_day = ""
+        project_name = data["projects"][project_id]["name"]
+        history = data["projects"][project_id]["history"]
+   
+        # Print the project's name
+        print(bcolors.PURPLE, project_name, bcolors.END)
     
-    # Headlines
-    col1 = "Day"
-    col2 = "Started"
-    col3 = "Stopped"
-    col4 = "Time recorded"
-    print("    {c1:14}{c2:9}{c3:9}{c4:7}".format(c1=col1, c2=col2, c3=col3, c4=col4))
-    print("-"*78)
-    for item in sorted(history):
-        started, stopped = item
-        secs, hf, hhmm = _time_diff(started, stopped)
-        day, time_started = _to_day_and_time(started)
-        _, time_stopped = _to_day_and_time(stopped)
-        str_day = "{day:14}".format(day=day)
-        if day == old_day:
-            str_day = " "*14
+        # print the history
+        if len(history) == 0:
+            print(bcolors.YELLOW, "   No entries", bcolors.END)
+            break
+    
+        old_day = ""
         
-        print("    {sd}{started:9}{stopped:9}{hhmm:7}({hf:1.2f} hours)".format(sd=str_day, started=time_started, stopped=time_stopped, hhmm=hhmm, hf=hf))
-        old_day = day
-
+        for item in sorted(history):
+            started, stopped = item
+            secs, hf, hhmm = _time_diff(started, stopped)
+            day, time_started = _to_day_and_time(started)
+            _, time_stopped = _to_day_and_time(stopped)
+            str_day = "{cb}{day:14}{ce}".format(cb=bcolors.YELLOW, day=day, ce=bcolors.END)
+            if day == old_day:
+                str_day = " "*14
+            
+            print("    {sd}{started:5} - {stopped:11}{hhmm:7}({hf:1.2f} hours)".format(sd=str_day, started=time_started, stopped=time_stopped, hhmm=hhmm, hf=hf))
+            old_day = day
+    
 
 
 #############################################################################
