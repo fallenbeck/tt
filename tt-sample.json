@@ -1,0 +1,30 @@
+{
+  "projects": {
+    "1": {
+      "history": [
+        [
+          "2017-07-31T07:53:24",
+          "2017-07-31T16:58:26"
+        ]
+      ],
+      "name": "Project one"
+    },
+    "2": {
+      "history": [],
+      "name": "Second project"
+    },
+    "3": {
+      "name": "freelance",
+      "history": []
+    }
+  },
+  "meta": {
+    "last_id": 3,
+    "file_version": 1
+  },
+  "tracking": {
+    "started": "2017-08-07T07:15:23",
+    "project": "1",
+    "active": true
+  }
+}
