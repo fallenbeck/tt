@@ -28,7 +28,7 @@ Usage
 =====
 Generic commands 
      init                  Initialize new data file
-     status                Display status information
+     st                    Display tracker status information
  
 Projects 
      a project name        Add new project with name "project name"
@@ -40,7 +40,6 @@ Tracking
      s 23                  Show tracked times for project 23
      start 23              Starts time tracking for project id 23
      stop                  Stops active time tracking
-
 
 Frequently Asked Questions
 ==========================
