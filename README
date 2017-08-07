@@ -24,6 +24,24 @@ easy as long as you have Python 3 (not 2!) installed on your machine:
   3. If you don't like the name: rename the file or create a symlink
 
 
+Usage
+=====
+Generic commands 
+     init                  Initialize new data file
+     status                Display status information
+ 
+Projects 
+     a project name        Add new project with name "project name"
+     d 23                  Delete project with id 23
+     l                     List projects and their ids
+ 
+Tracking 
+     s                     Show tracked times for all projects
+     s 23                  Show tracked times for project 23
+     start 23              Starts time tracking for project id 23
+     stop                  Stops active time tracking
+
+
 Frequently Asked Questions
 ==========================
 
