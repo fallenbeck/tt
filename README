@@ -41,6 +41,7 @@ Tracking
      start 23              Starts time tracking for project id 23
      stop                  Stops active time tracking
 
+
 Frequently Asked Questions
 ==========================
 
@@ -76,7 +77,17 @@ I want to use my phone as time tracking device. Is there an app?
 ----------------------------------------------------------------
 Hipster.
 But you can create a virtual machine at Amazon, install your favorite
-operating system and run tt via SSH.
+operating system and run tt via SSH. Or you write your own app (see next
+question).
+
+What file format is used to store the data?
+-------------------------------------------
+tt stores it's data in plain text and in human readable JSON format. tt
+does not compress the file and even uses a very human-friendly formatting
+to make sure that everyone can review and modify its data.
+But beware! If you mess up the file, tt will not work until you fix the
+problem or re-initialize tt (via tt init).
+The usual location of the hidden data file is right in your home: ~/.tt.json
 
 
 Contact
