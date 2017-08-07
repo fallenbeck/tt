@@ -204,15 +204,16 @@ def usage():
                 },
             "Projects": {
                 #"DESC": "Projects are needed for time tracking",
-                "ap project name": "Add new project with name \"project name\"",
-                "dp 23": "Delete project with id 23",
-                "lp": "List projects and their ids",
+                "a project name": "Add new project with name \"project name\"",
+                "d 23": "Delete project with id 23",
+                "l": "List projects and their ids",
                 },
             "Tracking": {
                 #"DESC": "Time tracking is about time tracking",
                 "start 23": "Starts time tracking for project id 23",
                 "stop": "Stops active time tracking",
-                "show 23": "Show tracked times for project 23",
+                "s": "Show tracked times for all projects",
+                "s 23": "Show tracked times for project 23",
                 }
             }
 
@@ -386,8 +387,12 @@ def show():
         else:
             print()
 
-        project_name = data["projects"][project_id]["name"]
-        history = data["projects"][project_id]["history"]
+        try:
+            project_name = data["projects"][project_id]["name"]
+            history = data["projects"][project_id]["history"]
+        except KeyError as e:
+            # Key (project_id) not found
+            break
    
         # Print the project's name
         print(bcolors.PURPLE, project_name, bcolors.END)
@@ -426,17 +431,17 @@ elif sys.argv[1].lower() == "init":
     init()
 elif sys.argv[1].lower() == "status":
     status()
-elif sys.argv[1].lower() == "lp":
+elif sys.argv[1].lower() == "l":
     list_projects()
-elif sys.argv[1].lower() == "ap":
+elif sys.argv[1].lower() == "a":
     add_project()
-elif sys.argv[1].lower() == "dp":
+elif sys.argv[1].lower() == "d":
     del_project()
 elif sys.argv[1].lower() == "start":
     start_tracking()
 elif sys.argv[1].lower() == "stop":
     stop_tracking()
-elif sys.argv[1].lower() == "show":
+elif sys.argv[1].lower() == "s":
     show()
 else:
     usage()
