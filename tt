@@ -245,7 +245,8 @@ def list_projects():
         print("No projects found.")
     else:
         for project_id, project_data in sorted(p.items()):
-            print("    {i:>3}   {n}".format(i=project_id, n=project_data["name"]))
+            #print("    {i:>3}   {n}".format(i=project_id, n=project_data["name"]))
+            print("    {cb}{i:>3}{ce}   {n}".format(cb=bcolors.YELLOW, i=project_id, ce=bcolors.END, n=project_data["name"]))
 
 
 def add_project():
