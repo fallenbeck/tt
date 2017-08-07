@@ -397,12 +397,12 @@ def show():
             continue
    
         # Print the project's name
-        print(bcolors.PURPLE, project_name, bcolors.END)
-    
+        print("    {cb}{i:>3}{ce}   {n}".format(cb=bcolors.YELLOW, i=project_id, ce=bcolors.END, n=project_name))
+
         # print the history
         if len(history) == 0:
             # If no history items are found, continue with next loop run
-            print("    No entries")
+            print("            No entries")
             continue
     
         old_day = ""
@@ -416,7 +416,7 @@ def show():
             if day == old_day:
                 str_day = " "*14
             
-            print("    {sd}{started:5} - {stopped:11}{hhmm:7}({hf:1.2f} hours)".format(sd=str_day, started=time_started, stopped=time_stopped, hhmm=hhmm, hf=hf))
+            print("            {sd}{started:5} - {stopped:11}{hhmm:7}({hf:1.2f} hours)".format(sd=str_day, started=time_started, stopped=time_stopped, hhmm=hhmm, hf=hf))
             old_day = day
     
 
