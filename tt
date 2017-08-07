@@ -190,7 +190,8 @@ def status():
         project_id = data["tracking"]["project"]
         project_name = data["projects"][project_id]["name"]
         _, hf, hhmm = _time_diff(since, _timestamp())
-        print("Tracking time in project {name}: {hhmm} ({hf:0.2f} hours)".format(name=project_name, hf=hf, hhmm=hhmm))
+        print("Tracking time in project {cb}{name}{ce}: {hhmm} ({hf:0.2f} hours)".format(cb=bcolors.YELLOW, name=project_name, ce=bcolors.END, hf=hf, hhmm=hhmm))
+        #print("Tracking time in project {name}: {hhmm} ({hf:0.2f} hours)".format(name=project_name, hf=hf, hhmm=hhmm))
 
 
 def usage():
