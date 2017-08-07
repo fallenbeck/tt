@@ -201,7 +201,7 @@ def usage():
     group = {
             "Generic commands": {
                 "init": "Initialize new data file",
-                "status": "Display status information",
+                "st": "Display tracker status information",
                 },
             "Projects": {
                 #"DESC": "Projects are needed for time tracking",
@@ -445,19 +445,19 @@ if len(sys.argv) <= 1:
     usage()
 elif sys.argv[1].lower() == "init":
     init()
-elif sys.argv[1].lower() == "status":
+elif sys.argv[1].lower() == "st" or sys.argv[1].lower() == "status":
     status()
-elif sys.argv[1].lower() == "l":
+elif sys.argv[1].lower() == "l" or sys.argv[1].lower() == "list":
     list_projects()
-elif sys.argv[1].lower() == "a":
+elif sys.argv[1].lower() == "a" or sys.argv[1].lower() == "add":
     add_project()
-elif sys.argv[1].lower() == "d":
+elif sys.argv[1].lower() == "d" or sys.argv[1].lower() == "delete":
     del_project()
 elif sys.argv[1].lower() == "start":
     start_tracking()
 elif sys.argv[1].lower() == "stop":
     stop_tracking()
-elif sys.argv[1].lower() == "s":
+elif sys.argv[1].lower() == "s" or sys.argv[1].lower() == "show":
     show()
 else:
     usage()
