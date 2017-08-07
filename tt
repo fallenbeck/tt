@@ -382,6 +382,16 @@ def show():
         print("You must specify a project id")
         sys.exit(20)
 
+    running_tracker = False
+    try:
+        running_tracker = data["tracking"]["active"]
+        running_project = data["tracking"]["project"]
+        running_since = data["tracking"]["started"]
+        running_since_day, running_since_time = _to_day_and_time(running_since)
+    except:
+        # in case of any error, set running_tracker to False
+        running_tracker = False
+
     for project_id in project_ids:
         try:
             project_name = data["projects"][project_id]["name"]
@@ -413,7 +423,15 @@ def show():
             
             print("              {sd}{started:5} - {stopped:11}{hhmm:7}({hf:1.2f} hours)".format(sd=str_day, started=time_started, stopped=time_stopped, hhmm=hhmm, hf=hf))
             old_day = day
-    
+
+        if running_tracker and running_project == project_id:
+            time_stopped = ""
+            _, hf, hhmm = _time_diff(running_since, _timestamp())
+            str_day = "{day:16}".format(day=running_since_day)
+            if running_since_day == old_day:
+                str_day = " "*16
+            print("              {sd}{started:5} - {stopped:11}{hhmm:7}({hf:1.2f} hours)      tracking".format(sd=str_day, started=running_since_time, stopped=time_stopped, hhmm=hhmm, hf=hf))
+            
 
 
 #############################################################################
