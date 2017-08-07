@@ -4,7 +4,7 @@
 # line. tymetracker (tt) is written entirely in Python 3 and stores the
 # records in a json data structure in the user's home directory.
 #
-datafile = "~/.tymetracker.json"
+datafile = "~/.tt.json"
 dateformat = "%Y-%m-%dT%H:%M:%S"
 
 
