@@ -372,7 +372,7 @@ def show():
 
     if len(sys.argv) < 3:
         # no project ID given, get list of all available project IDs
-        project_ids = data["projects"].keys() 
+        project_ids = list(data["projects"].keys())
     elif len(sys.argv) == 3:
         # project ID given, use it
         project_ids = sys.argv[2].split()
@@ -392,15 +392,17 @@ def show():
             history = data["projects"][project_id]["history"]
         except KeyError as e:
             # Key (project_id) not found
-            break
+            # continue with next loop run
+            continue
    
         # Print the project's name
         print(bcolors.PURPLE, project_name, bcolors.END)
     
         # print the history
         if len(history) == 0:
+            # If no history items are found, continue with next loop run
             print(bcolors.YELLOW, "   No entries", bcolors.END)
-            break
+            continue
     
         old_day = ""
         
