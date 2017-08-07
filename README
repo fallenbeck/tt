@@ -88,7 +88,7 @@ to make sure that everyone can review and modify its data.
 But beware! If you mess up the file, tt will not work until you fix the
 problem or re-initialize tt (via tt init).
 The usual location of the hidden data file is right in your home: ~/.tt.json
-
+Have a look at the tt-sample.json file to get an impression.
 
 Contact
 =======
