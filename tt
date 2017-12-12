@@ -48,12 +48,35 @@ class bcolors:
 
 
 def _get_project_name(data, project_id):
-    """Get a project's name.
+    """
+    Get a project's name. Consider using _project_name() function below if
+    you need to display the project's name in-line.
     """
     try:
         return data["projects"][project_id]["name"]
     except:
         return None
+
+
+def _project_name(data, project_id):
+    """
+    Returns a string that can be used every time when a project's name needs
+    do be displayed. Using this function makes sure that the name is always
+    printed in the same way making it easier to use tt.
+    """
+    pname = _get_project_name(data, project_id)
+    if pname is not None:
+        # r = "\"{cpb}{pname}{ce}\" ({cib}{i}{ce})".format(
+        r = "{cib}{i}{ce}: \"{pname}\"".format(
+                                                     cpb=bcolors.END,
+                                                     pname=pname,
+                                                     ce=bcolors.END,
+                                                     cib=bcolors.YELLOW,
+                                                     i=project_id)
+    else:
+        r = None
+
+    return r
 
 
 def _timestamp():
@@ -188,10 +211,8 @@ def status():
     else:
         since = data["tracking"]["started"]
         project_id = data["tracking"]["project"]
-        project_name = data["projects"][project_id]["name"]
         _, hf, hhmm = _time_diff(since, _timestamp())
-        print("Tracking time in project {cb}{name}{ce}: {hhmm} ({hf:0.2f} hours)".format(cb=bcolors.YELLOW, name=project_name, ce=bcolors.END, hf=hf, hhmm=hhmm))
-        #print("Tracking time in project {name}: {hhmm} ({hf:0.2f} hours)".format(name=project_name, hf=hf, hhmm=hhmm))
+        print("Tracking time in project {name}: {hhmm} ({hf:0.2f} hours)".format(name=_project_name(data, project_id), hf=hf, hhmm=hhmm))
 
 
 def usage():
@@ -277,7 +298,7 @@ def add_project():
 
     save(data)
 
-    print("Created project \"{name}\" with id {i}".format(name=name, i=project_id))
+    print("Created project {name}".format(name=_project_name(data, project_id)))
 
 
 def del_project():
@@ -292,12 +313,12 @@ def del_project():
 
     data = load()
     if project_id not in data.get("projects", {}):
-        print("Project {pid} not found".format(pid=project_id))
+        print("Project {cb}{pid}{ce} not found".format(cb=bcolors.YELLOW, pid=project_id, ce=bcolors.END))
         sys.exit(12)
     else:
+        print("Project {name} deleted".format(name=_project_name(data, project_id)))
         del data["projects"][project_id]
         save(data)
-        print("Project {name} deleted".format(name=_get_project_name(data, project_id)))
 
 
 
@@ -319,7 +340,10 @@ def start_tracking():
 
     data = load()
     if data["tracking"]["active"]:
-        print("Tracker already started")
+        since = data["tracking"]["started"]
+        tracking_id = data["tracking"]["project"]
+        _, hf, hhmm = _time_diff(since, _timestamp())
+        print("Tracker already started for project {name}".format(name=_project_name(data, tracking_id)))
         sys.exit(21)
 
     data["tracking"]["active"] = True
@@ -327,7 +351,7 @@ def start_tracking():
     data["tracking"]["started"] = _timestamp()
 
     save(data)
-    print("Tracker started for project {name}".format(name=_get_project_name(data, project_id)))
+    print("Tracker started for project {name}".format(name=_project_name(data, project_id)))
 
 
 def stop_tracking():
@@ -356,7 +380,7 @@ def stop_tracking():
     data["tracking"]["started"] = None
 
     save(data)
-    print("Tracker stopped for project {name} after {duration} ({hf:1.2f} hours)".format(name=_get_project_name(data, project_id), duration=hhmm, hf=hf))
+    print("Tracker stopped for project {name} after {duration} ({hf:1.2f} hours)".format(name=_project_name(data, project_id), duration=hhmm, hf=hf))
 
 
 def show():
