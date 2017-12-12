@@ -284,9 +284,20 @@ def add_project():
     name = " ".join(sys.argv[2:]).strip()
 
     data = load()
-
     project = {}
     project_id = int(data["meta"].get("last_id", 0)) + 1
+
+    # If there is a bogus last_id in our file, we need to make sure that no
+    # existing data will be overwritten
+
+    # We build a list of ints here. It is noteworthy that .keys() gives us a
+    # dict_keys object of strings. The map function converts all these
+    # strings to int.
+    existing_project_ids = map(int, data.get("projects", {}).keys())
+    if project_id in existing_project_ids:
+        # Get the biggest existing project ID and increase it by 1
+        project_id = max(existing_project_ids) + 1
+
     project["name"] = name
     project["history"] = []
 
