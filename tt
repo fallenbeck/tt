@@ -284,9 +284,20 @@ def add_project():
     name = " ".join(sys.argv[2:]).strip()
 
     data = load()
-
     project = {}
     project_id = int(data["meta"].get("last_id", 0)) + 1
+
+    # If there is a bogus last_id in our file, we need to make sure that no
+    # existing data will be overwritten
+
+    # We build a list of ints here. It is noteworthy that .keys() gives us a
+    # dict_keys object of strings. The map function converts all these
+    # strings to int.
+    existing_project_ids = map(int, data.get("projects", {}).keys())
+    if project_id in existing_project_ids:
+        # Get the biggest existing project ID and increase it by 1
+        project_id = max(existing_project_ids) + 1
+
     project["name"] = name
     project["history"] = []
 
@@ -339,12 +350,19 @@ def start_tracking():
     project_id = sys.argv[2]
 
     data = load()
+
+    # Check if there is an active tracker
     if data["tracking"]["active"]:
         since = data["tracking"]["started"]
         tracking_id = data["tracking"]["project"]
         _, hf, hhmm = _time_diff(since, _timestamp())
         print("Tracker already started for project {name}".format(name=_project_name(data, tracking_id)))
         sys.exit(21)
+
+    # Check if project ID exists
+    if project_id not in data.get("projects", {}):
+        print("Project {cb}{pid}{ce} not found".format(cb=bcolors.YELLOW, pid=project_id, ce=bcolors.END))
+        sys.exit(12)
 
     data["tracking"]["active"] = True
     data["tracking"]["project"] = project_id
