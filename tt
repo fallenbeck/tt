@@ -35,7 +35,8 @@ f = os.path.abspath(os.path.expanduser(datafile))
 #############################################################################
 
 class bcolors:
-    """Define some colors that can be used in the terminal.
+    """
+    Define some colors that can be used in the terminal.
     """
     PURPLE = '\033[95m'
     BLUE = '\033[94m'
@@ -48,7 +49,9 @@ class bcolors:
 
 
 def _get_project_name(data, project_id):
-    """Get a project's name.
+    """
+    Get a project's name. Consider using _project_name() function below if
+    you need to display the project's name in-line.
     """
     try:
         return data["projects"][project_id]["name"]
@@ -56,8 +59,30 @@ def _get_project_name(data, project_id):
         return None
 
 
+def _project_name(data, project_id):
+    """
+    Returns a string that can be used every time when a project's name needs
+    do be displayed. Using this function makes sure that the name is always
+    printed in the same way making it easier to use tt.
+    """
+    pname = _get_project_name(data, project_id)
+    if pname is not None:
+        # r = "\"{cpb}{pname}{ce}\" ({cib}{i}{ce})".format(
+        r = "{cib}{i}{ce}: \"{pname}\"".format(
+                                                     cpb=bcolors.END,
+                                                     pname=pname,
+                                                     ce=bcolors.END,
+                                                     cib=bcolors.YELLOW,
+                                                     i=project_id)
+    else:
+        r = None
+
+    return r
+
+
 def _timestamp():
-    """Return a timestamp.
+    """
+    Return a timestamp.
     This timestamp is crucial since it is used in the JSON file to store
     the beginning and end of the the time periods.
     We use the ISO format to ensure that humans can read (and modify) the
@@ -67,12 +92,12 @@ def _timestamp():
 
 
 def _time_diff(started, stopped):
-    """calculates the difference between to datetimes.
+    """
+    Calculate the difference between to datetimes.
     Returns a 3-tuple containing
         seconds as float (e.g., 23132.0 seconds)
         hour_frac as float (e.g., 0.3455353 hours)
         hhmm as string (e.g., 01:23)
-    You can display what the user wants to see.
     """
     a = datetime.datetime.strptime(started, dateformat)
     b = datetime.datetime.strptime(stopped, dateformat)
@@ -86,7 +111,8 @@ def _time_diff(started, stopped):
 
 
 def _to_day_and_time(isodateformat):
-    """Return the day and the time from an ISO-formatted date.
+    """
+    Return the day and the time from an ISO-formatted date.
     Given a timestamp, the day and the time will be returned as a 2-tuple with
     the day in format YYYY-mm-dd as first element and the time in format HH:MM
     as the second element of the tuple.
@@ -102,7 +128,8 @@ def _to_day_and_time(isodateformat):
 #############################################################################
 
 def load():
-    """Load the JSON datafile and return a dict with all the values.
+    """
+    Load the JSON datafile and return a dict with all the values.
     """
     try:
         fp = open(f, "r")
@@ -123,7 +150,8 @@ def load():
 
 
 def save(data):
-    """Write the data dict object to disk in JSON format.
+    """
+    Write the data dict object to disk in JSON format.
     """
     if data is not None:
         try:
@@ -144,7 +172,8 @@ def save(data):
 #############################################################################
 
 def init():
-    """Initialize a new datafile if it does not exist.
+    """
+    Initialize a new datafile if it does not exist.
     Cannot overwrite existing datafile, needs to be manually
     deleted beforehand.
     """
@@ -178,7 +207,8 @@ def init():
 
 
 def status():
-    """Display some information about the current state. If the tracker
+    """
+    Display some information about the current state. If the tracker
     is active this function displays a brief summary of the recent
     work period.
     """
@@ -188,14 +218,13 @@ def status():
     else:
         since = data["tracking"]["started"]
         project_id = data["tracking"]["project"]
-        project_name = data["projects"][project_id]["name"]
         _, hf, hhmm = _time_diff(since, _timestamp())
-        print("Tracking time in project {cb}{name}{ce}: {hhmm} ({hf:0.2f} hours)".format(cb=bcolors.YELLOW, name=project_name, ce=bcolors.END, hf=hf, hhmm=hhmm))
-        #print("Tracking time in project {name}: {hhmm} ({hf:0.2f} hours)".format(name=project_name, hf=hf, hhmm=hhmm))
+        print("Tracking time in project {name}: {hhmm} ({hf:0.2f} hours)".format(name=_project_name(data, project_id), hf=hf, hhmm=hhmm))
 
 
 def usage():
-    """Print the list of commands that are supported. This function is
+    """
+    Print the list of commands that are supported. This function is
     called if the users calls tt with no or too few arguments.
     """
     group = {
@@ -238,7 +267,8 @@ def usage():
 #############################################################################
 
 def list_projects():
-    """Print all existing projects.
+    """
+    Print all existing projects.
     """
     data = load()
     p = data.get("projects", {})
@@ -252,7 +282,8 @@ def list_projects():
 
 
 def add_project():
-    """Add a project.
+    """
+    Add a project.
     You need to specify a project name. The project name can contain spaces.
     When created, this function prints the id of the created project.
     """
@@ -263,9 +294,20 @@ def add_project():
     name = " ".join(sys.argv[2:]).strip()
 
     data = load()
-
     project = {}
     project_id = int(data["meta"].get("last_id", 0)) + 1
+
+    # If there is a bogus last_id in our file, we need to make sure that no
+    # existing data will be overwritten
+
+    # We build a list of ints here. It is noteworthy that .keys() gives us a
+    # dict_keys object of strings. The map function converts all these
+    # strings to int.
+    existing_project_ids = map(int, data.get("projects", {}).keys())
+    if project_id in existing_project_ids:
+        # Get the biggest existing project ID and increase it by 1
+        project_id = max(existing_project_ids) + 1
+
     project["name"] = name
     project["history"] = []
 
@@ -277,11 +319,12 @@ def add_project():
 
     save(data)
 
-    print("Created project \"{name}\" with id {i}".format(name=name, i=project_id))
+    print("Created project {name}".format(name=_project_name(data, project_id)))
 
 
 def del_project():
-    """Delete a project.
+    """
+    Delete a project.
     You need to specify a project id.
     """
     if len(sys.argv) < 3:
@@ -292,12 +335,12 @@ def del_project():
 
     data = load()
     if project_id not in data.get("projects", {}):
-        print("Project {pid} not found".format(pid=project_id))
+        print("Project {cb}{pid}{ce} not found".format(cb=bcolors.YELLOW, pid=project_id, ce=bcolors.END))
         sys.exit(12)
     else:
+        print("Project {name} deleted".format(name=_project_name(data, project_id)))
         del data["projects"][project_id]
         save(data)
-        print("Project {name} deleted".format(name=_get_project_name(data, project_id)))
 
 
 
@@ -306,10 +349,12 @@ def del_project():
 #############################################################################
 
 def start_tracking():
-    """Starts a tracker for a given project.
+    """
+    Start a tracker for a given project.
     You must specify a project id when starting a tracker. The recorded
     time will be stored in the particular project's context.
-    If a tracker is alreay active, an error will be displayed.
+    If a tracker is alreay active, a warning will be displayed and the
+    tracker will not be started.
     """
     if len(sys.argv) < 3:
         print("You must specify a project id")
@@ -318,20 +363,31 @@ def start_tracking():
     project_id = sys.argv[2]
 
     data = load()
+
+    # Check if there is an active tracker
     if data["tracking"]["active"]:
-        print("Tracker already started")
+        since = data["tracking"]["started"]
+        tracking_id = data["tracking"]["project"]
+        _, hf, hhmm = _time_diff(since, _timestamp())
+        print("Tracker already started for project {name}".format(name=_project_name(data, tracking_id)))
         sys.exit(21)
+
+    # Check if project ID exists
+    if project_id not in data.get("projects", {}):
+        print("Project {cb}{pid}{ce} not found".format(cb=bcolors.YELLOW, pid=project_id, ce=bcolors.END))
+        sys.exit(12)
 
     data["tracking"]["active"] = True
     data["tracking"]["project"] = project_id
     data["tracking"]["started"] = _timestamp()
 
     save(data)
-    print("Tracker started for project {name}".format(name=_get_project_name(data, project_id)))
+    print("Tracker started for project {name}".format(name=_project_name(data, project_id)))
 
 
 def stop_tracking():
-    """Stop a running tracker.
+    """
+    Stop a running tracker.
     No need to specify a project id (will be ignored). If no active tracker
     is found, an error is printed to the console.
     """
@@ -356,16 +412,20 @@ def stop_tracking():
     data["tracking"]["started"] = None
 
     save(data)
-    print("Tracker stopped for project {name} after {duration} ({hf:1.2f} hours)".format(name=_get_project_name(data, project_id), duration=hhmm, hf=hf))
+    print("Tracker stopped for project {name} after {duration} ({hf:1.2f} hours)".format(name=_project_name(data, project_id), duration=hhmm, hf=hf))
 
 
 def show():
-    """Show the recorded times for a particular project.
-    You must specify a project id. As a result, a list of all recorded times
-    will be printed to the console in the following format:
-        Day           Started  Stopped  Time recorded
-    ------------------------------------------------------------------------------
-        2017-07-31    23:36    23:48    00:11  (0.20 hours)
+    """
+    Show the recorded times.
+    You can specify a project ID to show only the times for this particular
+    project. If you do not specify a particular project, a list of all
+    recorded times will be printed to the console in the following format:
+      1   LRZ
+              2017-07-31      07:53 - 16:58      09:05  (9.08 hours)
+              2017-08-07      07:15 - 15:22      08:07  (8.12 hours)
+              2017-08-10      07:56 - 11:00      03:04  (3.07 hours)
+                              11:01 - 16:46      05:45  (5.76 hours)
     """
     data = load()
     project_ids = list() # list of project ids to display
@@ -438,7 +498,8 @@ def show():
 ### Entry point
 #############################################################################
 
-"""Main function/entry point when starting the program.
+"""
+Main function/entry point when starting the program.
 Parses the arguments and calls the appropriate functions.
 """
 if len(sys.argv) <= 1:
