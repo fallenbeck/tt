@@ -339,12 +339,19 @@ def start_tracking():
     project_id = sys.argv[2]
 
     data = load()
+
+    # Check if there is an active tracker
     if data["tracking"]["active"]:
         since = data["tracking"]["started"]
         tracking_id = data["tracking"]["project"]
         _, hf, hhmm = _time_diff(since, _timestamp())
         print("Tracker already started for project {name}".format(name=_project_name(data, tracking_id)))
         sys.exit(21)
+
+    # Check if project ID exists
+    if project_id not in data.get("projects", {}):
+        print("Project {cb}{pid}{ce} not found".format(cb=bcolors.YELLOW, pid=project_id, ce=bcolors.END))
+        sys.exit(12)
 
     data["tracking"]["active"] = True
     data["tracking"]["project"] = project_id
