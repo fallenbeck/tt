@@ -366,11 +366,20 @@ def start_tracking():
 
     # Check if there is an active tracker
     if data["tracking"]["active"]:
-        since = data["tracking"]["started"]
-        tracking_id = data["tracking"]["project"]
-        _, hf, hhmm = _time_diff(since, _timestamp())
-        print("Tracker already started for project {name}".format(name=_project_name(data, tracking_id)))
-        sys.exit(21)
+        try:
+            since = data["tracking"]["started"]
+            tracking_id = data["tracking"]["project"]
+            _, hf, hhmm = _time_diff(since, _timestamp())
+            print("Tracker already started for project {name}".format(name=_project_name(data, tracking_id)))
+            sys.exit(21)
+        except Exception as e:
+            # We have an active tracker but it cannot be read.
+            # This might happen if this tracker refers to a non-existing
+            # project ID. Reset tracking settings and continue.
+            print("Stopped faulty tracker marked as active")
+            data["tracking"]["active"] = False
+            data["tracking"]["project"] = None
+            data["tracking"]["started"] = None
 
     # Check if project ID exists
     if project_id not in data.get("projects", {}):
@@ -396,15 +405,23 @@ def stop_tracking():
         print("Tracker not active")
         sys.exit(22)
 
-    project_id = data["tracking"]["project"]
-    started = data["tracking"]["started"]
-    stopped = _timestamp()
-    diff, hf, hhmm = _time_diff(started, stopped)
+    try:
+        project_id = data["tracking"]["project"]
+        started = data["tracking"]["started"]
+        stopped = _timestamp()
+        diff, hf, hhmm = _time_diff(started, stopped)
 
-    # add tuple to history
-    history = data["projects"][project_id]["history"]
-    history.append( (started, stopped) )
-    data["projects"][project_id]["history"] = history
+        # add tuple to history
+        history = data["projects"][project_id]["history"]
+        history.append( (started, stopped) )
+        data["projects"][project_id]["history"] = history
+
+        print("Tracker stopped for project {name} after {duration} ({hf:1.2f} hours)".format(name=_project_name(data, project_id), duration=hhmm, hf=hf))
+
+    except Exception as e:
+        # We have to deal with an entry we cannot read (and parse) correctly.
+        # This might happen if the tracker refers to a non-existing project
+        # ID. We should simply deactivate the tracker.
 
     # reset tracking settings
     data["tracking"]["active"] = False
@@ -412,7 +429,7 @@ def stop_tracking():
     data["tracking"]["started"] = None
 
     save(data)
-    print("Tracker stopped for project {name} after {duration} ({hf:1.2f} hours)".format(name=_project_name(data, project_id), duration=hhmm, hf=hf))
+    
 
 
 def show():
