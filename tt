@@ -376,7 +376,7 @@ def start_tracking():
             # We have an active tracker but it cannot be read.
             # This might happen if this tracker refers to a non-existing
             # project ID. Reset tracking settings and continue.
-            print("Stopped faulty tracker marked as active")
+            print("Stopped faulty tracker marked as active: {}".format(e))
             data["tracking"]["active"] = False
             data["tracking"]["project"] = None
             data["tracking"]["started"] = None
@@ -422,6 +422,7 @@ def stop_tracking():
         # We have to deal with an entry we cannot read (and parse) correctly.
         # This might happen if the tracker refers to a non-existing project
         # ID. We should simply deactivate the tracker.
+        print("Tracker stopped but an error occurred: {}".format(e))
 
     # reset tracking settings
     data["tracking"]["active"] = False
