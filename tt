@@ -17,7 +17,7 @@ import sys
 try:
     assert sys.version_info >= (3,0)
 except:
-    print("Python 3 is required to run tymetracker/tt.")
+    print("Python 3 is required to run tt")
     sys.exit(1)
 
 # Import stuff we need
