@@ -249,6 +249,8 @@ def status():
     work period.
     """
     data = load()
+    number_of_projects = len(data["projects"])
+    print("{} projects".format(number_of_projects))
     if not data["tracking"]["active"]:
         print("No active time tracking")
     else:
