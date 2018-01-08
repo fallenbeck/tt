@@ -255,7 +255,7 @@ def status():
         since = data["tracking"]["started"]
         project_id = data["tracking"]["project"]
         _, hf, hhmm = _time_diff(since, _timestamp())
-        print("Tracking time in project {name}: {hhmm} ({hf:0.2f} hours)".format(name=_project_name(data, project_id), hf=hf, hhmm=hhmm))
+        print("Tracking time in project {name} for {hhmm} ({hf:0.2f} hours)".format(name=_project_name(data, project_id), hf=hf, hhmm=hhmm))
 
 
 def usage():
