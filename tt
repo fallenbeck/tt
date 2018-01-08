@@ -471,7 +471,7 @@ def stop_tracking():
     
 
 
-def show():
+def show(limit = 10):
     """
     Show the recorded times.
     You can specify a project ID to show only the times for this particular
@@ -482,6 +482,14 @@ def show():
               2017-08-07      07:15 - 15:22      08:07  (8.12 hours)
               2017-08-10      07:56 - 11:00      03:04  (3.07 hours)
                               11:01 - 16:46      05:45  (5.76 hours)
+
+    If limit is specifed, only the last limit + 1 log entries are displayed
+    when no project ID is given (i.e. in the overview page). If a project
+    ID is given, this limit will be ignored because we assume that the user
+    wants to see every detail of the particular project.
+
+    A running tracker will displayed independently from the limit.
+    limit specifies the number of "finished" log entries to display.
     """
     data = load()
     project_ids = list() # list of project ids to display
@@ -493,6 +501,8 @@ def show():
     elif len(sys.argv) >= 3:
         # project ID given, use it
         project_ids = sys.argv[2:]
+        # project IDs are given, ignoring the limit
+        limit = 0
     else:
         # too many arguments, throw an error
         print("You must specify a project id")
@@ -510,6 +520,11 @@ def show():
 
     for raw_project_id in project_ids:
         project_id = _get_project_id(data, raw_project_id)
+        if project_id is None:
+            # could not look up project's ID
+            # inform user and continue with next ID
+            print("Project {cb}{pid}{ce} not found".format(cb=bcolors.YELLOW, pid=raw_project_id, ce=bcolors.END))
+            continue
 
         try:
             project_name = data["projects"][project_id]["name"]
@@ -531,7 +546,20 @@ def show():
         old_day = ""
         # total = 0.0
         
-        for item in sorted(history):
+        if limit:
+            history_to_display = history[:limit]
+            skipped = len(history) - limit
+            if skipped > 0:
+                if skipped == 1:
+                    txt = "1 more entry"
+                else:
+                    txt = "{nt} more entries".format(nt = skipped)
+                
+                print("              ... {t} - use \"{bin} show {pid}\" to display complete history".format(t=txt, bin=os.path.basename(sys.argv[0]), pid=project_id))
+        else:
+            history_to_display = history
+
+        for item in sorted(history_to_display):
             started, stopped = item
             secs, hf, hhmm = _time_diff(started, stopped)
             # total = total + hf
