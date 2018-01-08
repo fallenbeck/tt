@@ -48,6 +48,42 @@ class bcolors:
     UNDERLINE = '\033[4m'
 
 
+def _get_project_id(data, project_id_or_name):
+    """Look up and return a project's ID if it exists.
+    If the project ID is given, this ID will be returned if the project
+    exists in the data. If a project's name is given, this function
+    looks up the name in data and return the ID of the project.
+    If the project could not be found, this function returns None.
+    """
+    # If we have a positive number project_id_or_name could be the
+    # ID itself. Let's check
+    if project_id_or_name.isdigit():
+        if project_id_or_name in data["projects"].keys():
+            return project_id_or_name
+
+    # project_id_or_name is not the project ID. Let's search all projects'
+    # names
+    for project_id, project in data["projects"].items():
+        if project_id_or_name == project["name"]:
+            return project_id
+
+    # Ok, did not find anything yet. Maybe the case of the letters is
+    # different... since we found nothing yet, let's try that.
+    # Note, that case-removing conversions in unicode aren't trivial. There
+    # is text for which text.lower() != text.upper().lower(), such as "ß":
+    #  "ß".lower()
+    #  #>>> 'ß'
+    #  "ß".upper().lower()
+    #  #>>> 'ss'
+    for project_id, project in data["projects"].items():
+        if project_id_or_name.lower() == project["name"].lower():
+            return project_id
+
+    # We could not find the string neither in the IDs nor in the names.
+    # Giving up.
+    return None
+
+
 def _get_project_name(data, project_id):
     """
     Get a project's name. Consider using _project_name() function below if
@@ -329,6 +365,7 @@ def del_project():
     """
     if len(sys.argv) < 3:
         print("You must specify a project id")
+        list_projects()
         sys.exit(11)
 
     project_id = sys.argv[2]
@@ -358,11 +395,13 @@ def start_tracking():
     """
     if len(sys.argv) < 3:
         print("You must specify a project id")
+        list_projects()
         sys.exit(20)
 
-    project_id = sys.argv[2]
-
     data = load()
+
+    # project_id = sys.argv[2]
+    project_id = _get_project_id(data, sys.argv[2])
 
     # Check if there is an active tracker
     if data["tracking"]["active"]:
@@ -470,7 +509,9 @@ def show():
         # in case of any error, set running_tracker to False
         running_tracker = False
 
-    for project_id in project_ids:
+    for raw_project_id in project_ids:
+        project_id = _get_project_id(data, raw_project_id)
+
         try:
             project_name = data["projects"][project_id]["name"]
             history = data["projects"][project_id]["history"]
