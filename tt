@@ -551,7 +551,7 @@ def show(limit = 10):
         total = 0.0
         
         if limit:
-            history_to_display = history[:limit]
+            history_to_display = history[(len(history) - limit):]
             skipped = len(history) - limit
             if skipped > 0:
                 if skipped == 1:
