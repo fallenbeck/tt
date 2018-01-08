@@ -490,9 +490,9 @@ def show():
     if len(sys.argv) < 3:
         # no project ID given, get list of all available project IDs
         project_ids = sorted(list(data["projects"].keys()))
-    elif len(sys.argv) == 3:
+    elif len(sys.argv) >= 3:
         # project ID given, use it
-        project_ids = sys.argv[2].split()
+        project_ids = sys.argv[2:]
     else:
         # too many arguments, throw an error
         print("You must specify a project id")
