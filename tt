@@ -279,7 +279,7 @@ def usage():
                 "start 23": "Starts time tracking for project id 23",
                 "stop": "Stops active time tracking",
                 "s": "Show tracked times for all projects",
-                "s 23": "Show tracked times for project 23",
+                "s 23": "Show tracked times and some additional information for project 23",
                 }
             }
 
@@ -493,7 +493,8 @@ def show(limit = 10):
     """
     data = load()
     project_ids = list() # list of project ids to display
-    first = True
+    # first = True
+    detailed_view = False
 
     if len(sys.argv) < 3:
         # no project ID given, get list of all available project IDs
@@ -503,6 +504,7 @@ def show(limit = 10):
         project_ids = sys.argv[2:]
         # project IDs are given, ignoring the limit
         limit = 0
+        detailed_view = True
     else:
         # too many arguments, throw an error
         print("You must specify a project id")
@@ -544,7 +546,7 @@ def show(limit = 10):
             continue
     
         old_day = ""
-        # total = 0.0
+        total = 0.0
         
         if limit:
             history_to_display = history[:limit]
@@ -562,7 +564,7 @@ def show(limit = 10):
         for item in sorted(history_to_display):
             started, stopped = item
             secs, hf, hhmm = _time_diff(started, stopped)
-            # total = total + hf
+            total = total + hf
             day, time_started = _to_day_and_time(started)
             _, time_stopped = _to_day_and_time(stopped)
             str_day = "{day:16}".format(day=day)
@@ -575,10 +577,14 @@ def show(limit = 10):
         if running_tracker and running_project == project_id:
             time_stopped = ""
             _, hf, hhmm = _time_diff(running_since, _timestamp())
+            total = total + hf
             str_day = "{day:16}".format(day=running_since_day)
             if running_since_day == old_day:
                 str_day = " "*16
             print("              {sd}{started:5} - {stopped:11}{hhmm:7}({hf:1.2f} hours)      tracking".format(sd=str_day, started=running_since_time, stopped=time_stopped, hhmm=hhmm, hf=hf))
+
+        if detailed_view:
+            print("              Total time tracked: {hf:9.2f} hours".format(project=_project_name(data, project_id=project_id), hf=total))
             
 
 
