@@ -607,7 +607,7 @@ def show(limit = 10):
                 else:
                     txt = "{nt} more entries".format(nt = skipped)
                 
-                print("              ... {t} - use \"{bin} {cmd} {pid}\" to display complete history".format(t=txt, bin=os.path.basename(sys.argv[0]), cmd=sys.argv[1], pid=project_id))
+                print("              ... {t} - use \"{bin} {cmd} {pid}\" to display complete history".format(t=txt, bin=my_name, cmd=sys.argv[1], pid=project_id))
         else:
             history_to_display = history
 
