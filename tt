@@ -12,18 +12,20 @@ dateformat = "%Y-%m-%dT%H:%M:%S"
 ### Here be dragons!
 #############################################################################
 
-# Sanity check: only proceed if we are in a python3 environment
+# Import stuff we need
+import copy
+import datetime
+import json
+import os
 import sys
+
+# Sanity check: only proceed if we are in a python3 environment
 try:
     assert sys.version_info >= (3,0)
 except:
     print("Python 3 is required to run tt")
     sys.exit(1)
 
-# Import stuff we need
-import datetime
-import json
-import os
 
 # Set variables we need
 f = os.path.abspath(os.path.expanduser(datafile))
@@ -260,6 +262,29 @@ def status():
         print("Tracking time in project {name} for {hhmm} ({hf:0.2f} hours)".format(name=_project_name(data, project_id), hf=hf, hhmm=hhmm))
 
 
+def cleanup():
+    """Clean up the projects.
+    This function will reassign new IDs to the project.
+    After the reorganization the file is saved to disk.
+    """
+    data = load()
+
+    # iterate the projects and reassign new IDs
+    old_projects = copy.deepcopy(data["projects"])
+    project_id = 0
+    data["projects"] = {}
+    for project in old_projects.values():
+        project_id = project_id + 1
+        data["projects"][project_id] = project
+
+    # set the correct last ID
+    data["meta"]["last_id"] = project_id
+
+    # write to disk
+    save(data)
+    print("Successfully cleaned up {}".format(datafile))
+
+
 def usage():
     """
     Print the list of commands that are supported. This function is
@@ -268,20 +293,21 @@ def usage():
     group = {
             "Generic commands": {
                 "init": "Initialize new data file",
-                "st": "Display tracker status information",
+                "status/st": "Display tracker status information",
+                "cleanup/c": "Cleanup and reorganize data file",
                 },
             "Projects": {
                 #"DESC": "Projects are needed for time tracking",
-                "a project name": "Add new project with name \"project name\"",
-                "d 23": "Delete project with id 23",
-                "l": "List projects and their ids",
+                "add/a project name": "Add new project with name \"project name\"",
+                "delete/d 23": "Delete project with id 23",
+                "list/l": "List projects and their ids",
                 },
             "Tracking": {
                 #"DESC": "Time tracking is about time tracking",
                 "start 23": "Starts time tracking for project id 23",
                 "stop": "Stops active time tracking",
-                "s": "Show tracked times for all projects",
-                "s 23": "Show tracked times and some additional information for project 23",
+                "show/s": "Show tracked times for all projects",
+                "show/s 23": "Show tracked times and some additional information for project 23",
                 }
             }
 
@@ -442,8 +468,8 @@ def stop_tracking():
     """
     data = load()
     if not data["tracking"]["active"]:
-        print("Tracker not active")
-        sys.exit(22)
+        print("No active tracker")
+        sys.exit(0)
 
     try:
         project_id = data["tracking"]["project"]
@@ -616,6 +642,8 @@ elif sys.argv[1].lower() == "stop":
     stop_tracking()
 elif sys.argv[1].lower() == "s" or sys.argv[1].lower() == "show":
     show()
+elif sys.argv[1].lower() == "c" or sys.argv[1].lower() == "cleanup":
+    cleanup()
 else:
     usage()
 
