@@ -430,6 +430,29 @@ def del_project():
         save(data)
 
 
+def rename_project():
+    """Rename a project.
+    You need to specify a project id.
+    """
+    if len(sys.argv) < 4:
+        print("You must specify a project id and a new project name")
+        list_projects()
+        sys.exit(11)
+
+    project_id = sys.argv[2]
+    new_name = " ".join(sys.argv[3:])
+
+    data = load()
+    if project_id not in data.get("projects", {}):
+        print("Project {cb}{pid}{ce} not found".format(cb=bcolors.YELLOW, pid=project_id, ce=bcolors.END))
+        sys.exit(12)
+    else:
+        data["projects"][project_id]["name"] = new_name
+        print("Assigned new name to project {name}".format(name=_project_name(data, project_id)))
+        save(data)
+
+
+
 
 #############################################################################
 ### Time tracking
@@ -658,6 +681,8 @@ elif sys.argv[1].lower() == "a" or sys.argv[1].lower() == "add":
     add_project()
 elif sys.argv[1].lower() == "d" or sys.argv[1].lower() == "delete":
     del_project()
+elif sys.argv[1].lower() == "r" or sys.argv[1].lower() == "rename":
+    rename_project()
 elif sys.argv[1].lower() == "start":
     start_tracking()
 elif sys.argv[1].lower() == "stop":
