@@ -26,20 +26,31 @@ easy as long as you have Python 3 (not 2!) installed on your machine:
 
 Usage
 =====
-Generic commands 
+ Generic commands 
+     Commands to initialize tt and perform management tasks.
+
+     cleanup/c             Cleanup and reorganize data file
      init                  Initialize new data file
-     st                    Display tracker status information
- 
-Projects 
-     a project name        Add new project with name "project name"
-     d 23                  Delete project with id 23
-     l                     List projects and their ids
- 
-Tracking 
-     s                     Show tracked times for all projects
-     s 23                  Show tracked times for project 23
+     status/st             Display tracker status information
+
+
+ Projects 
+     Before you can start a tracker you need to create a project to which this tracker is assigned. These commands allow you to add, delete and manage existing projects.
+
+     add/a project name    Add new project with name "project name"
+     delete/d 23           Delete project with id 23
+     list/l                List projects and their ids
+     rename/r 23 new name  Rename project with ID 23 to "new name"
+
+
+ Tracking 
+     These commands allow to start and stop trackers as well as displaying tracked times in existing projects.
+
+     show/s                Show tracked times for all projects
+     show/s 23             Show tracked times and some additional information for project 23
      start 23              Starts time tracking for project id 23
      stop                  Stops active time tracking
+
 
 
 Frequently Asked Questions
@@ -89,6 +100,16 @@ But beware! If you mess up the file, tt will not work until you fix the
 problem or re-initialize tt (via tt init).
 The usual location of the hidden data file is right in your home: ~/.tt.json
 Have a look at the tt-sample.json file to get an impression.
+
+What does "cleanup and reorganize" mean?
+----------------------------------------
+During the use of tt projects may be created and deleted. However, the ID
+assigned to a new project is always the successor of the last ID assigned.
+When deleting an earlier project there might be holes and the project IDs
+are not consecutive anymore. When calling the cleanup function new IDs
+are assigned to the projects eliminating these holes and re-establish a
+consecutive list of IDs.
+
 
 Contact
 =======
