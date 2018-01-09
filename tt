@@ -12,21 +12,26 @@ dateformat = "%Y-%m-%dT%H:%M:%S"
 ### Here be dragons!
 #############################################################################
 
-# Sanity check: only proceed if we are in a python3 environment
-import sys
-try:
-    assert sys.version_info >= (3,0)
-except:
-    print("Python 3 is required to run tt")
-    sys.exit(1)
-
 # Import stuff we need
+import copy
 import datetime
 import json
 import os
+import sys
+
 
 # Set variables we need
 f = os.path.abspath(os.path.expanduser(datafile))
+my_name = os.path.basename(sys.argv[0])
+
+
+# Sanity check: only proceed if we are in a python3 environment
+try:
+    assert sys.version_info >= (3,0)
+except:
+    print("Python 3 is required to run {}".format(my_name))
+    sys.exit(1)
+
 
 
 
@@ -55,16 +60,27 @@ def _get_project_id(data, project_id_or_name):
     looks up the name in data and return the ID of the project.
     If the project could not be found, this function returns None.
     """
+    # print(type(project_id_or_name))
+    pin = None
+    if isinstance(project_id_or_name, str):
+        pin = project_id_or_name
+    elif isinstance(project_id_or_name, list):
+        pin = " ".join(project_id_or_name)
+    else:
+        print("Could not look up project ID for {} ({})".format(project_id_or_name, type(project_id_or_name)))
+        return None
+
+
     # If we have a positive number project_id_or_name could be the
     # ID itself. Let's check
-    if project_id_or_name.isdigit():
+    if pin.isdigit():
         if project_id_or_name in data["projects"].keys():
             return project_id_or_name
 
     # project_id_or_name is not the project ID. Let's search all projects'
     # names
     for project_id, project in data["projects"].items():
-        if project_id_or_name == project["name"]:
+        if pin == project["name"]:
             return project_id
 
     # Ok, did not find anything yet. Maybe the case of the letters is
@@ -76,7 +92,7 @@ def _get_project_id(data, project_id_or_name):
     #  "ß".upper().lower()
     #  #>>> 'ss'
     for project_id, project in data["projects"].items():
-        if project_id_or_name.lower() == project["name"].lower():
+        if pin.lower() == project["name"].lower():
             return project_id
 
     # We could not find the string neither in the IDs nor in the names.
@@ -260,6 +276,29 @@ def status():
         print("Tracking time in project {name} for {hhmm} ({hf:0.2f} hours)".format(name=_project_name(data, project_id), hf=hf, hhmm=hhmm))
 
 
+def cleanup():
+    """Clean up the projects.
+    This function will reassign new IDs to the project.
+    After the reorganization the file is saved to disk.
+    """
+    data = load()
+
+    # iterate the projects and reassign new IDs
+    old_projects = copy.deepcopy(data["projects"])
+    project_id = 0
+    data["projects"] = {}
+    for project in old_projects.values():
+        project_id = project_id + 1
+        data["projects"][project_id] = project
+
+    # set the correct last ID
+    data["meta"]["last_id"] = project_id
+
+    # write to disk
+    save(data)
+    print("Successfully cleaned up {}".format(datafile))
+
+
 def usage():
     """
     Print the list of commands that are supported. This function is
@@ -267,31 +306,39 @@ def usage():
     """
     group = {
             "Generic commands": {
+                "DESC": "Commands to initialize {} and perform management tasks.".format(my_name),
                 "init": "Initialize new data file",
-                "st": "Display tracker status information",
+                "status/st": "Display tracker status information",
+                "cleanup/c": "Cleanup and reorganize data file",
                 },
             "Projects": {
-                #"DESC": "Projects are needed for time tracking",
-                "a project name": "Add new project with name \"project name\"",
-                "d 23": "Delete project with id 23",
-                "l": "List projects and their ids",
+                "DESC": "Before you can start a tracker you need to create a project to which this tracker is assigned. These commands allow you to add, delete and manage existing projects.",
+                "add/a project name": "Add new project with name \"project name\"",
+                "delete/d 23": "Delete project with id 23",
+                "list/l": "List projects and their ids",
+                "rename/r 23 new name": "Rename project with ID 23 to \"new name\""
                 },
             "Tracking": {
-                #"DESC": "Time tracking is about time tracking",
+                "DESC": "These commands allow to start and stop trackers as well as displaying tracked times in existing projects.",
                 "start 23": "Starts time tracking for project id 23",
                 "stop": "Stops active time tracking",
-                "s": "Show tracked times for all projects",
-                "s 23": "Show tracked times and some additional information for project 23",
+                "show/s": "Show tracked times for all projects",
+                "show/s 23": "Show tracked times and some additional information for project 23",
                 }
             }
 
     # Display the commands/dicts
+    first = True
     for group, commands in sorted(group.items()):
-        print(bcolors.PURPLE, "\n{group}".format(group=group), bcolors.END)
+        if first:
+            first = False
+        else:
+            print("\n")
+        print(bcolors.PURPLE, "{group}".format(group=group), bcolors.END)
 
         # print the DESC if needed
         if "DESC" in commands:
-            print("{desc}".format(desc=commands["DESC"]))
+            print("     {desc}\n".format(desc=commands["DESC"]))
 
         # print all commands (and not DESC)
         for command, description in sorted(commands.items()):
@@ -370,9 +417,10 @@ def del_project():
         list_projects()
         sys.exit(11)
 
-    project_id = sys.argv[2]
-
     data = load()
+
+    project_id = _get_project_id(data, sys.argv[2:])
+
     if project_id not in data.get("projects", {}):
         print("Project {cb}{pid}{ce} not found".format(cb=bcolors.YELLOW, pid=project_id, ce=bcolors.END))
         sys.exit(12)
@@ -380,6 +428,29 @@ def del_project():
         print("Project {name} deleted".format(name=_project_name(data, project_id)))
         del data["projects"][project_id]
         save(data)
+
+
+def rename_project():
+    """Rename a project.
+    You need to specify a project id.
+    """
+    if len(sys.argv) < 4:
+        print("You must specify a project id and a new project name")
+        list_projects()
+        sys.exit(11)
+
+    project_id = sys.argv[2]
+    new_name = " ".join(sys.argv[3:])
+
+    data = load()
+    if project_id not in data.get("projects", {}):
+        print("Project {cb}{pid}{ce} not found".format(cb=bcolors.YELLOW, pid=project_id, ce=bcolors.END))
+        sys.exit(12)
+    else:
+        data["projects"][project_id]["name"] = new_name
+        print("Assigned new name to project {name}".format(name=_project_name(data, project_id)))
+        save(data)
+
 
 
 
@@ -442,8 +513,8 @@ def stop_tracking():
     """
     data = load()
     if not data["tracking"]["active"]:
-        print("Tracker not active")
-        sys.exit(22)
+        print("No active tracker")
+        sys.exit(0)
 
     try:
         project_id = data["tracking"]["project"]
@@ -559,7 +630,7 @@ def show(limit = 10):
                 else:
                     txt = "{nt} more entries".format(nt = skipped)
                 
-                print("              ... {t} - use \"{bin} {cmd} {pid}\" to display complete history".format(t=txt, bin=os.path.basename(sys.argv[0]), cmd=sys.argv[1], pid=project_id))
+                print("              ... {t} - use \"{bin} {cmd} {pid}\" to display complete history".format(t=txt, bin=my_name, cmd=sys.argv[1], pid=project_id))
         else:
             history_to_display = history
 
@@ -610,12 +681,16 @@ elif sys.argv[1].lower() == "a" or sys.argv[1].lower() == "add":
     add_project()
 elif sys.argv[1].lower() == "d" or sys.argv[1].lower() == "delete":
     del_project()
+elif sys.argv[1].lower() == "r" or sys.argv[1].lower() == "rename":
+    rename_project()
 elif sys.argv[1].lower() == "start":
     start_tracking()
 elif sys.argv[1].lower() == "stop":
     stop_tracking()
 elif sys.argv[1].lower() == "s" or sys.argv[1].lower() == "show":
     show()
+elif sys.argv[1].lower() == "c" or sys.argv[1].lower() == "cleanup":
+    cleanup()
 else:
     usage()
 
