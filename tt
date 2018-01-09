@@ -19,16 +19,19 @@ import json
 import os
 import sys
 
+
+# Set variables we need
+f = os.path.abspath(os.path.expanduser(datafile))
+my_name = os.path.basename(sys.argv[0])
+
+
 # Sanity check: only proceed if we are in a python3 environment
 try:
     assert sys.version_info >= (3,0)
 except:
-    print("Python 3 is required to run tt")
+    print("Python 3 is required to run {}".format(my_name))
     sys.exit(1)
 
-
-# Set variables we need
-f = os.path.abspath(os.path.expanduser(datafile))
 
 
 
