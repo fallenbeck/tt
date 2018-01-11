@@ -620,8 +620,8 @@ def show(limit = 10):
     
         old_day = ""
         total = 0.0
+        day_total = 0.0
         
-        if limit:
         if limit and limit < len(history):
             history_to_display = history[(len(history) - limit):]
             skipped = len(history) - limit
@@ -642,10 +642,15 @@ def show(limit = 10):
             day, time_started = _to_day_and_time(started)
             _, time_stopped = _to_day_and_time(stopped)
             str_day = "{day:16}".format(day=day)
-            if day == old_day:
+            if day != old_day:
+                day_total = hf
+                str_day_total = ""
+            else:
                 str_day = " "*16
+                day_total = day_total + hf
+                str_day_total = "{space}{dt:1.2f} hours total".format(space = " "*6, dt = day_total)
             
-            print("              {sd}{started:5} - {stopped:11}{hhmm:7}({hf:1.2f} hours)".format(sd=str_day, started=time_started, stopped=time_stopped, hhmm=hhmm, hf=hf))
+            print("              {sd}{started:5} - {stopped:11}{hhmm:7}({hf:1.2f} hours){sdt}".format(sd=str_day, started=time_started, stopped=time_stopped, hhmm=hhmm, hf=hf, sdt = str_day_total))
             old_day = day
 
         if running_tracker and running_project == project_id:
