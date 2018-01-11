@@ -622,6 +622,7 @@ def show(limit = 10):
         total = 0.0
         
         if limit:
+        if limit and limit < len(history):
             history_to_display = history[(len(history) - limit):]
             skipped = len(history) - limit
             if skipped > 0:
