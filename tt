@@ -3,9 +3,25 @@
 # It is really simple and I got the idea when using todolist on the command
 # line. tymetracker (tt) is written entirely in Python 3 and stores the
 # records in a json data structure in the user's home directory.
-#
 datafile = "~/.tt.json"
 dateformat = "%Y-%m-%dT%H:%M:%S"
+
+# Exit codes
+# There are a couple of exit codes that can occur when running tt. 
+# Code  Meaning
+# -----+---------------------------------------------------------------------
+#    0  OK
+#    1  Python Version < 3.x
+#    2  Data file should be initialized but does already exist
+#    3  Data file not found
+#    4  Other exception while trying to read data file
+#    5  Could not read data from data file
+#    7  Exception while saving/writing data to data file
+#   10  Project's name or ID not specified when trying to add a new project
+#   11  Project's name or ID not specified when trying to delete/rename p.
+#   12  Project with given name or ID could not be found
+#   20  Project's name or ID not specified when trying to start tracker
+#   21  Tracker already started
 
 
 #############################################################################
