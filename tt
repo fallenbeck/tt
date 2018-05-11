@@ -97,6 +97,9 @@ def _get_project_id(data, project_id_or_name):
 
     # We could not find the string neither in the IDs nor in the names.
     # Giving up.
+    print("Project {cb}{pid}{ce} not found".format(cb=bcolors.YELLOW, pid=project_id_or_name, ce=bcolors.END))
+    sys.exit(12)
+
     return None
 
 
