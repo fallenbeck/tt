@@ -90,8 +90,9 @@ def _get_project_id(data, project_id_or_name):
     # If we have a positive number project_id_or_name could be the
     # ID itself. Let's check
     if pin.isdigit():
-        if project_id_or_name in data["projects"].keys():
-            return project_id_or_name
+        if pin in data["projects"].keys():
+            return pin
+            # return project_id_or_name
 
     # project_id_or_name is not the project ID. Let's search all projects'
     # names
@@ -440,7 +441,7 @@ def del_project():
 
     project_id = _get_project_id(data, sys.argv[2:])
 
-    if project_id not in data.get("projects", {}):
+    if project_id not in data.get("projects", {}).keys():
         print("Project {cb}{pid}{ce} not found".format(cb=bcolors.YELLOW, pid=project_id, ce=bcolors.END))
         sys.exit(12)
     else:
