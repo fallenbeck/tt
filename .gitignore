@@ -1,1 +1,4 @@
 \.*.swp
+
+# IDEA (PyCharm)
+.idea/
