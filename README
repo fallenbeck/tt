@@ -31,6 +31,7 @@ Usage
 
      cleanup/c             Cleanup and reorganize data file
      init                  Initialize new data file
+     log                   Show activity log
      status/st             Display tracker status information
 
 

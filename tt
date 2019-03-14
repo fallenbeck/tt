@@ -424,6 +424,7 @@ def usage():
                 "init": "Initialize new data file",
                 "status/st": "Display tracker status information",
                 "cleanup/c": "Cleanup and reorganize data file",
+                "log": "Show activity log"
                 },
             "Projects": {
                 "DESC": "Before you can start a tracker you need to create a project to which this tracker is assigned. These commands allow you to add, delete and manage existing projects.",
