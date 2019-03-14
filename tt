@@ -437,22 +437,27 @@ def status():
         _, hf, hhmm = _time_diff(since, _timestamp())
         print("Tracking time in project {name} for {hhmm} ({hf:0.2f} hours)".format(name=_project_name(data, project_id), hf=hf, hhmm=hhmm))
 
-def print_log():
+def print_log(limit = 20):
     """
     """
     if len(sys.argv) == 3:
         if sys.argv[2].lower() == "enable":
             enable_log()
+            sys.exit(0)
         elif sys.argv[2].lower() == "disable":
             disable_log()
-        sys.exit(0)
+            sys.exit(0)
+        elif sys.argv[2].isdigit():
+            # Display last n entries
+            limit = int(sys.argv[2])
 
     data = load()
     if not data["config"]["log_actions"]:
         print("Disabled in local config")
         sys.exit(42)
 
-    history = data["log"]
+    # Get the last limit entries of the sorted list of log entries
+    history = sorted(data["log"])[-limit:]
     for line in history:
         print("{indent}{msg}".format(indent = " " * 2, msg = line))
 
