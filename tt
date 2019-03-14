@@ -293,9 +293,8 @@ def load():
         print("Read corrupt data from", f)
         sys.exit(5)
 
-    current_file_version = data["meta"]["file_version"]
-    recent_file_version = DATAFILE_VERSION
-    data = _file_version_upgrade(current_file_version, recent_file_version, data)
+    # Apply upgrade to the data read from the disk (if needed)
+    data = _file_version_upgrade(data)
 
     return data
 
@@ -327,6 +326,7 @@ def save(data, msg = None):
 def _file_version_upgrade(from_version, to_version, data = None):
     """
     This function migrates a data file from on old version to a new version.
+def _file_version_upgrade(data = None):
 
     It will load the data from the data file, apply modifications to it and
     saves the data back to the disk.
@@ -334,6 +334,11 @@ def _file_version_upgrade(from_version, to_version, data = None):
     # Load the data from the datafile on disk (if needed)
     if data is None:
         data = load()
+
+    # Determine the version of the data file as well as the version
+    # we need to migrate to 
+    from_version = data["meta"]["file_version"]
+    to_version = DATAFILE_VERSION
 
     # Check if changes need to be made, return otherwise
     if from_version == to_version:
