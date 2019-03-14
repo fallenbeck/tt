@@ -80,10 +80,18 @@ class bcolors:
 
 def _get_project_id(data, project_id_or_name):
     """Look up and return a project's ID if it exists.
+
     If the project ID is given, this ID will be returned if the project
     exists in the data. If a project's name is given, this function
     looks up the name in data and return the ID of the project.
     If the project could not be found, this function returns None.
+
+    :param data:                Data object representing the current state
+    :type data:                 dict
+    :param project_id_or_name:  Argument given by caller representing either a project ID or name
+    :type project_id_or_name:   str
+    :return:                    ID of the project in the data object
+    :rtype:                     str
     """
     # print(type(project_id_or_name))
     pin = None
@@ -130,9 +138,17 @@ def _get_project_id(data, project_id_or_name):
 
 
 def _get_project_name(data, project_id):
-    """
+    """Return the name of a project.
+
     Get a project's name. Consider using _project_name() function below if
     you need to display the project's name in-line.
+
+    :param data:        Data object representing the current state
+    :type data:         dict
+    :param project_id:  ID of project
+    :type project_id:   str
+    :return:            Name of the project
+    :rtype:             str
     """
     try:
         return data["projects"][project_id]["name"]
@@ -141,10 +157,18 @@ def _get_project_name(data, project_id):
 
 
 def _project_name(data, project_id):
-    """
+    """Return a colored string representing a project.
+
     Returns a string that can be used every time when a project's name needs
     do be displayed. Using this function makes sure that the name is always
     printed in the same way making it easier to use tt.
+
+    :param data:        Data object representing the current state
+    :type data:         dict
+    :param project_id:  ID of project
+    :type project_id:   str
+    :return:            Colored string to print on the command line
+    :rtype:             str or None
     """
     pname = _get_project_name(data, project_id)
     if pname is not None:
@@ -170,12 +194,15 @@ def _project_name(data, project_id):
 
 
 def _timestamp():
-    """
-    Return a timestamp.
+    """Return a timestamp.
+
     This timestamp is crucial since it is used in the JSON file to store
     the beginning and end of the the time periods.
     We use the ISO format to ensure that humans can read (and modify) the
     values manually if needed.
+
+    :return:    Return a timestamp used to calculate tracking times
+    :rtype:     str
     """
     return datetime.datetime.now().strftime(dateformat)
 
@@ -218,7 +245,10 @@ def _to_day_and_time(isodateformat):
 
 
 def enable_log():
-    """Enable log functionality
+    """Enable log functionality.
+
+    This function reconfigures and saves the particular setting in the
+    data files's config section.
     """
     data = load()
     if not data["config"]["log_actions"]:
@@ -231,7 +261,10 @@ def enable_log():
 
 
 def disable_log():
-    """Disable log functionality
+    """Disable log functionality.
+
+    This function reconfigures and saves the particular setting in the
+    data files's config section.
     """
     data = load()
     if data["config"]["log_actions"]:
@@ -244,7 +277,10 @@ def disable_log():
 
 
 def enable_pause():
-    """Enable tracking pause times
+    """Enable tracking pause times.
+
+    This function reconfigures and saves the particular setting in the
+    data files's config section.
     """
     data = load()
     if not data["config"]["log_pause_times"]:
@@ -257,7 +293,10 @@ def enable_pause():
 
 
 def disable_pause():
-    """Disable tracking pause times
+    """Disable tracking pause times.
+
+    This function reconfigures and saves the particular setting in the
+    data files's config section.
     """
     data = load()
     if data["config"]["log_pause_times"]:
@@ -275,8 +314,12 @@ def disable_pause():
 #############################################################################
 
 def load():
-    """
+    """Load data file contents.
+
     Load the JSON datafile and return a dict with all the values.
+
+    :return:    Data object representing the current state
+    :rtype:     dict
     """
     try:
         fp = open(f, "r")
@@ -300,11 +343,15 @@ def load():
 
 
 def save(data, msg = None):
-    """
-    Write the data dict object to disk in JSON format.
+    """Write the data dict object to disk in JSON format.
 
     If a msg is set, this text will be appended to the log in the datafile
     if logging in the config section is set to True (which is the default).
+
+    :param data:    Data object representing the current state
+    :type data:     dict
+    :param msg:     ID of project
+    :type msg:      str
     """
     if data is not None:
 
@@ -323,13 +370,20 @@ def save(data, msg = None):
         print("No data to write")
 
 
-def _file_version_upgrade(from_version, to_version, data = None):
-    """
-    This function migrates a data file from on old version to a new version.
 def _file_version_upgrade(data = None):
+    """This function migrates a data file from on old version to a new version.
 
-    It will load the data from the data file, apply modifications to it and
-    saves the data back to the disk.
+    If the data object is given as an argument, this function will operate on
+    the provided data object otherwise the data will be loaded from disk.
+    The version of the data file and the version needed by tt will be
+    compared. If needed, modifications are applied to the data object.
+    After applying all modifications the data object is stored to disk and
+    is returned by this function.
+
+    :param data:    (Optional) Data object representing the current state
+    :type data:     dict
+    :return:        Return updated data object
+    :rtype:         dict
     """
     # Load the data from the datafile on disk (if needed)
     if data is None:
@@ -367,10 +421,13 @@ def _file_version_upgrade(data = None):
 #############################################################################
 
 def init():
-    """
-    Initialize a new datafile if it does not exist.
-    Cannot overwrite existing datafile, needs to be manually
-    deleted beforehand.
+    """Initialize a new datafile if it does not exist.
+
+    If a data file already exists, the program will return with an error code.
+    If an existing data file should be overwritten, the user needs to
+    manually delete the existing file.
+
+    The new data file will be written to disk and the program will exit.
     """
     if os.path.isfile(f):
         print("Data file {} already exists".format(f))
@@ -397,10 +454,11 @@ def init():
                 "projects": {
                     # id:    {
                         # "name": Projektname,
-                        # "history": [] # tuples (start, stop, mins)
+                        # "history": [] # elements are tuples (start, stop)
                     # }
                     # },
-                    # This is the meta-project "Pause".
+
+                    # This is the special project "Pause".
                     # This project is used for pause/resume timekeeping.
                     "p": {
                         "name": "Pause",
@@ -415,10 +473,10 @@ def init():
 
 
 def status():
-    """
-    Display some information about the current state. If the tracker
-    is active this function displays a brief summary of the recent
-    work period.
+    """Print current state.
+
+    If a tracker is active this function displays a brief summary of the
+    recent work period.
     """
     data = load()
     number_of_projects = len(data["projects"])
@@ -438,7 +496,14 @@ def status():
         print("Tracking time in project {name} for {hhmm} ({hf:0.2f} hours)".format(name=_project_name(data, project_id), hf=hf, hhmm=hhmm))
 
 def print_log(limit = 20):
-    """
+    """Print log.
+
+    If the log is enabled in the local configuration existing log entries
+    are printed to the console.
+    The user can also privde "enable", "disable", or a number as argument
+    together with the log keyword. If enable or disable is given, the
+    appropriate configuration update is carried out. If a number is given
+    this number is treated as the number of log entries to print.
     """
     if len(sys.argv) == 3:
         if sys.argv[2].lower() == "enable":
@@ -458,12 +523,15 @@ def print_log(limit = 20):
 
     # Get the last limit entries of the sorted list of log entries
     history = sorted(data["log"])[-limit:]
+
+    # Print the log
     for line in history:
         print("{indent}{msg}".format(indent = " " * 2, msg = line))
 
 
 def cleanup():
     """Clean up the projects.
+
     This function will reassign new IDs to the project.
     After the reorganization the file is saved to disk.
     """
@@ -489,9 +557,10 @@ def cleanup():
 
 
 def usage():
-    """
-    Print the list of commands that are supported. This function is
-    called if the users calls tt with no or too few arguments.
+    """Print the list of commands that are supported.
+
+    This function is called everytime  the user calls tt with no or too
+    few arguments.
     """
     group = {
             "Generic commands": {
@@ -548,8 +617,10 @@ def usage():
 #############################################################################
 
 def list_projects():
-    """
-    Print all existing projects.
+    """Print all existing projects.
+
+    The special project p is only displayed if tracking pause times is enabled
+    in the local configuration.
     """
     data = load()
     p = data.get("projects", {})
@@ -569,8 +640,8 @@ def list_projects():
 
 
 def add_project():
-    """
-    Add a project.
+    """Add a project.
+
     You need to specify a project name. The project name can contain spaces.
     When created, this function prints the id of the created project.
     """
@@ -610,8 +681,8 @@ def add_project():
 
 
 def del_project():
-    """
-    Delete a project.
+    """Delete a project.
+
     You need to specify a project id.
     """
     if len(sys.argv) < 3:
@@ -637,7 +708,8 @@ def del_project():
 
 def rename_project():
     """Rename a project.
-    You need to specify a project id.
+
+    You need to specify a project id and a new project name.
     """
     if len(sys.argv) < 4:
         print("You must specify a project id and a new project name")
@@ -667,12 +739,18 @@ def rename_project():
 #############################################################################
 
 def start_tracking(project_id = None):
-    """
-    Start a tracker for a given project.
+    """Start a tracker for a given project.
+
     You must specify a project id when starting a tracker. The recorded
     time will be stored in the particular project's context.
     If a tracker is alreay active, a warning will be displayed and the
     tracker will not be started.
+
+    The optional argument project_id allows to start a new tracker
+    programatically and will be used for pause/resume operations.
+
+    :param project_id:  ID of project
+    :type project_id:   str
     """
     if project_id is None and len(sys.argv) < 3:
         print("You must specify a project id")
@@ -720,8 +798,8 @@ def start_tracking(project_id = None):
 
 
 def stop_tracking():
-    """
-    Stop a running tracker.
+    """Stop a running tracker.
+
     No need to specify a project id (will be ignored). If no active tracker
     is found, an error is printed to the console.
     """
@@ -765,7 +843,14 @@ def stop_tracking():
 
 
 def pause_tracking():
-    """
+    """Pauses a tracker.
+
+    This function only works if tracking pause times is enabled in the local
+    configuration. Otherwise this function will exit with an error code.
+    If activated the current tracker will be stopped and the tracker of the
+    special pause project will be started.
+
+    The opposite of this function is resume_tracking().
     """
     if len(sys.argv) == 3:
         if sys.argv[2].lower() == "enable":
@@ -824,7 +909,17 @@ def pause_tracking():
 
 
 def resume_tracking():
-    """
+    """Resume a tracker.
+
+    This function does work even if tracking of pause times is disabled.
+    However, if tt is in pause mode this function will stop the tracker
+    of the pause project and start the tracker of the project that has
+    been paused. It's ID is saved as last_project in the meta section
+    of the data file.
+
+    If there is no running (pause) tracker this function will start a
+    new timer for the project id saved as last_project in the meta
+    section of the data file.
     """
     data = load()
 
@@ -870,8 +965,8 @@ def resume_tracking():
 
 
 def show(limit = 10):
-    """
-    Show the recorded times.
+    """Show the recorded times.
+
     You can specify a project ID to show only the times for this particular
     project. If you do not specify a particular project, a list of all
     recorded times will be printed to the console in the following format:
@@ -888,6 +983,12 @@ def show(limit = 10):
 
     A running tracker will displayed independently from the limit.
     limit specifies the number of "finished" log entries to display.
+
+    The special pause project will only be displayed if tracking pause
+    times is enabled in the local configuration.
+
+    :param limit:   Number of entries to max. display per project
+    :type limit:    int
     """
     data = load()
     project_ids = list() # list of project ids to display
@@ -1006,10 +1107,11 @@ def show(limit = 10):
 ### Entry point
 #############################################################################
 
-"""
-Main function/entry point when starting the program.
+"""Main function/entry point when starting the program.
+
 Parses the arguments and calls the appropriate functions.
 """
+
 if len(sys.argv) <= 1:
     usage()
 elif sys.argv[1].lower() == "init":
@@ -1042,4 +1144,4 @@ elif sys.argv[1].lower() == "c" or sys.argv[1].lower() == "cleanup":
 else:
     usage()
 
-# eof. thank you.
+# EOF
