@@ -86,8 +86,8 @@ of my computers, move it to my Dropbox folder and create a symlink in my
 home directory pointing to this file. I create this symlink on all machines
 where I want to use tt:
 	1. tt init
-	2. mv .tymetracker.json ~/Dropbox/tymetracker.json
-	3. ln -s ~/Dropbox/tymetracker.json ~/.tymetracker.json
+	2. mv .tt.json ~/Dropbox/tt.json
+	3. ln -s ~/Dropbox/tt.json ~/.tt.json
 Whenever you modify your local data it is synced to the other machines.
 Yes, you can use other synchronization tools as well. 
 
