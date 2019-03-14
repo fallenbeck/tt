@@ -117,25 +117,25 @@ consecutive list of IDs.
 Exit Codes
 ==========
 
-| Exit Code | Meaning |
-| ---------:|:------- |
-|    0      | OK |
-|    1      | Python Version < 3.x |
-|    2      | Data file should be initialized but does already exist |
-|    3      | Data file not found |
-|    4      | Other exception while trying to read data file |
-|    5      | Could not read data from data file |
-|    7      | Exception while saving/writing data to data file |
-|   10      | Project's name or ID not specified when trying to add a new project |
-|   11      | Project's name or ID not specified when trying to delete/rename p. |
-|   12      | Project with given name or ID could not be found |
-|   13      | Not allowed to alter special project |
-|   20      | Project's name or ID not specified when trying to start tracker |
-|   21      | Tracker already started |
-|   22      | No tracker found |
-|   23      | Not allowed to start or stop tracker for special project |
-|   24      | Tracker already paused |
-|   42      | Disabled in local configuration |
+Exit Code   Meaning
+-------------------
+   0        OK
+   1        Python Version < 3.x
+   2        Data file should be initialized but does already exist
+   3        Data file not found
+   4        Other exception while trying to read data file
+   5        Could not read data from data file
+   7        Exception while saving/writing data to data file
+  10        Project's name or ID not specified when trying to add a new project
+  11        Project's name or ID not specified when trying to delete/rename p.
+  12        Project with given name or ID could not be found
+  13        Not allowed to alter special project
+  20        Project's name or ID not specified when trying to start tracker
+  21        Tracker already started
+  22        No tracker found
+  23        Not allowed to start or stop tracker for special project
+  24        Tracker already paused
+  42        Disabled in local configuration
 
 
 Contact
