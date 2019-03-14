@@ -40,16 +40,18 @@ Usage
      add/a project name    Add new project with name "project name"
      delete/d 23           Delete project with id 23
      list/l                List projects and their ids
-     rename/r 23 new name  Rename project with ID 23 to "new name"
+     rename 23 new name    Rename project with ID 23 to "new name"
 
 
  Tracking 
      These commands allow to start and stop trackers as well as displaying tracked times in existing projects.
 
+     pause/p               Pause an active tracker
+     resume/r              Resume tracker either from pause (by unpausing project) or by creating a new tracker for the last used project
      show/s                Show tracked times for all projects
      show/s 23             Show tracked times and some additional information for project 23
-     start 23              Starts time tracking for project id 23
-     stop                  Stops active time tracking
+     start 23              Start time tracking for project id 23
+     stop                  Stop active time tracking
 
 
 
@@ -117,7 +119,7 @@ Exit Codes
 | Exit Code | Meaning |
 | ---------:|:------- |
 |    0      | OK |
-|    1      | Python Version < 3.x used to run `tt` |
+|    1      | Python Version < 3.x |
 |    2      | Data file should be initialized but does already exist |
 |    3      | Data file not found |
 |    4      | Other exception while trying to read data file |
@@ -126,8 +128,13 @@ Exit Codes
 |   10      | Project's name or ID not specified when trying to add a new project |
 |   11      | Project's name or ID not specified when trying to delete/rename p. |
 |   12      | Project with given name or ID could not be found |
+|   13      | Not allowed to alter special project |
 |   20      | Project's name or ID not specified when trying to start tracker |
 |   21      | Tracker already started |
+|   22      | No tracker found |
+|   23      | Not allowed to start or stop tracker for special project |
+|   24      | Tracker already paused |
+|   42      | Disabled in local configuration |
 
 
 Contact
