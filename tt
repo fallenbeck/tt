@@ -213,6 +213,64 @@ def _to_day_and_time(isodateformat):
 
 
 #############################################################################
+### Configuration functions
+#############################################################################
+
+
+def enable_log():
+    """Enable log functionality
+    """
+    data = load()
+    if not data["config"]["log_actions"]:
+        msg = "Enabled log"
+        data["config"]["log_actions"] = True
+        print(msg)
+        save(data, msg)
+    else:
+        print("Log already enabled")
+
+
+def disable_log():
+    """Disable log functionality
+    """
+    data = load()
+    if data["config"]["log_actions"]:
+        msg = "Disabled log"
+        data["config"]["log_actions"] = False
+        print(msg)
+        save(data, msg)
+    else:
+        print("Log already disabled")
+
+
+def enable_pause():
+    """Enable tracking pause times
+    """
+    data = load()
+    if not data["config"]["log_pause_times"]:
+        msg = "Enabled tracking of pause times"
+        data["config"]["log_pause_times"] = True
+        print(msg)
+        save(data, msg)
+    else:
+        print("Tracking of pause times already enabled")
+
+
+def disable_pause():
+    """Disable tracking pause times
+    """
+    data = load()
+    if data["config"]["log_pause_times"]:
+        msg = "Disabled tracking of pause times"
+        data["config"]["log_pause_times"] = False
+        print(msg)
+        save(data, msg)
+    else:
+        print("Tracking of pause times already disabled")
+
+
+
+#############################################################################
 ### Data file functions
 #############################################################################
 
@@ -377,6 +435,13 @@ def status():
 def print_log():
     """
     """
+    if len(sys.argv) == 3:
+        if sys.argv[2].lower() == "enable":
+            enable_log()
+        elif sys.argv[2].lower() == "disable":
+            disable_log()
+        sys.exit(0)
+
     data = load()
     if not data["config"]["log_actions"]:
         print("Disabled in local config")
@@ -424,7 +489,9 @@ def usage():
                 "init": "Initialize new data file",
                 "status/st": "Display tracker status information",
                 "cleanup/c": "Cleanup and reorganize data file",
-                "log": "Show activity log"
+                "log": "Show activity log",
+                "log enable": "Enable activity log",
+                "log disable": "Disable activity log",
                 },
             "Projects": {
                 "DESC": "Before you can start a tracker you need to create a project to which this tracker is assigned. These commands allow you to add, delete and manage existing projects.",
@@ -438,6 +505,8 @@ def usage():
                 "start 23": "Start time tracking for project id 23",
                 "stop": "Stop active time tracking",
                 "pause/p": "Pause an active tracker",
+                "pause/p disable": "Disable tracking of pause times",
+                "pause/p enable": "Enable tracking of pause times",
                 "resume/r": "Resume tracker either from pause (by unpausing project) or by creating a new tracker for the last used project",
                 "show/s": "Show tracked times for all projects",
                 "show/s 23": "Show tracked times and some additional information for project 23",
@@ -688,6 +757,13 @@ def stop_tracking():
 def pause_tracking():
     """
     """
+    if len(sys.argv) == 3:
+        if sys.argv[2].lower() == "enable":
+            enable_pause()
+        elif sys.argv[2].lower() == "disable":
+            disable_pause()
+        sys.exit(0)
+
     data = load()
 
     if not data["tracking"]["active"]:
