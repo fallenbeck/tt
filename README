@@ -58,6 +58,7 @@ Usage
      show/s 23             Show tracked times and some additional information for project 23
      start 23              Start time tracking for project id 23
      stop                  Stop active time tracking
+     switch/sw 23          Switch a tracker to a new project by stopping it and starting a new
 
 
 

@@ -589,6 +589,7 @@ def usage():
                 "resume/r": "Resume tracker from paused project or from last project used",
                 "show/s": "Show tracked times for all projects",
                 "show/s 23": "Show tracked times and some additional information for project 23",
+                "switch/sw 23": "Switch a tracker to a new project by stopping it and starting a new",
                 "cancel/c": "Cancel active tracker and dismiss time",
                 }
             }
@@ -874,6 +875,26 @@ def cancel_tracking():
 
     print(msg)
     save(data, msg)
+
+
+def switch_tracking():
+    """Switch a tracker by stopping the active tracker and starting a new one.
+
+    This function is basically an alias of tt stop && tt start <project>.
+    """
+    # data = load()
+    # if not data["tracking"]["active"]:
+    #     print("No active tracker")
+    #     sys.exit(22)
+
+    if len(sys.argv) < 3:
+        print("You must specify a project id")
+        list_projects()
+        sys.exit(20)
+
+    stop_tracking()
+    start_tracking()
+
 
 
 def pause_tracking():
@@ -1176,6 +1197,8 @@ elif sys.argv[1].lower() == "start":
     start_tracking()
 elif sys.argv[1].lower() == "stop":
     stop_tracking()
+elif sys.argv[1].lower() == "sw" or sys.argv[1].lower() == "switch":
+    switch_tracking()    
 elif sys.argv[1].lower() == "c" or sys.argv[1].lower() == "cancel":
     cancel_tracking()
 
