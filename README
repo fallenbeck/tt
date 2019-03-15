@@ -50,6 +50,7 @@ Usage
      These commands allow to start and stop trackers as well as displaying tracked times in existing projects.
 
      cancel/c              Cancel active tracker and dismiss time
+     change/ch 23          Chance project assigned to an active tracker
      pause/p               Pause an active tracker
      pause/p disable       Disable tracking of pause times
      pause/p enable        Enable tracking of pause times

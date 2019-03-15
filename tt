@@ -590,6 +590,7 @@ def usage():
                 "show/s": "Show tracked times for all projects",
                 "show/s 23": "Show tracked times and some additional information for project 23",
                 "switch/sw 23": "Switch a tracker to a new project by stopping it and starting a new",
+                "change/ch 23": "Chance project assigned to an active tracker",
                 "cancel/c": "Cancel active tracker and dismiss time",
                 }
             }
@@ -896,6 +897,32 @@ def switch_tracking():
     start_tracking()
 
 
+def change_tracking():
+    """Assign active tracker to new project.
+
+    This function updates the project an already active tracker is tracking
+    time in. It allows to reassign a tracker that has been started in a wrong
+    project
+    """
+    if len(sys.argv) < 3:
+        print("You must specify a project id")
+        list_projects()
+        sys.exit(20)
+
+    data = load()
+    project_id = _get_project_id(data, sys.argv[2])
+
+    if not data["tracking"]["active"]:
+        print("No active tracker")
+        sys.exit(22)
+
+    # Change the project ID
+    data["tracking"]["project"] = project_id
+
+    msg = "Tracker changed to project {name}".format(name = _project_name(data, project_id))
+    print(msg)
+    save(data, msg)
+
 
 def pause_tracking():
     """Pauses a tracker.
@@ -1198,7 +1225,9 @@ elif sys.argv[1].lower() == "start":
 elif sys.argv[1].lower() == "stop":
     stop_tracking()
 elif sys.argv[1].lower() == "sw" or sys.argv[1].lower() == "switch":
-    switch_tracking()    
+    switch_tracking()
+elif sys.argv[1].lower() == "ch" or sys.argv[1].lower() == "change":
+    change_tracking()
 elif sys.argv[1].lower() == "c" or sys.argv[1].lower() == "cancel":
     cancel_tracking()
 
