@@ -521,8 +521,8 @@ def print_log(limit = 20):
         print("Disabled in local config")
         sys.exit(42)
 
-    # Get the last limit entries of the sorted list of log entries
-    history = sorted(data["log"])[-limit:]
+    # Get the last limit entries of the list of log entries
+    history = data["log"][-limit:]
 
     # Print the log
     for line in history:
