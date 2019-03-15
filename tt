@@ -1166,6 +1166,9 @@ elif sys.argv[1].lower() == "d" or sys.argv[1].lower() == "del" or sys.argv[1].l
     del_project()
 elif sys.argv[1].lower() == "rename":
     rename_project()
+elif sys.argv[1].lower() == "s" or sys.argv[1].lower() == "show":
+    show()
+
 elif sys.argv[1].lower() == "p" or sys.argv[1].lower() == "pause":
     pause_tracking()
 elif sys.argv[1].lower() == "r" or sys.argv[1].lower() == "res" or sys.argv[1].lower() == "resume":
@@ -1174,8 +1177,6 @@ elif sys.argv[1].lower() == "start":
     start_tracking()
 elif sys.argv[1].lower() == "stop":
     stop_tracking()
-elif sys.argv[1].lower() == "s" or sys.argv[1].lower() == "show":
-    show()
 elif sys.argv[1].lower() == "c" or sys.argv[1].lower() == "cancel":
     cancel_tracking()
 
