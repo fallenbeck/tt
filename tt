@@ -856,7 +856,7 @@ def cancel_tracking():
 
     try:
         project_id = data["tracking"]["project"]
-        msg = "Cancelled tracker for project {name}".format(name = _project_name(data, project_id))
+        msg = "Tracker cancelled for project {name}".format(name = _project_name(data, project_id))
 
     except Exception as e:
         # We have to deal with an entry we cannot read (and parse) correctly.
