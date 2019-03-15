@@ -592,6 +592,7 @@ def usage():
                 "switch/sw 23": "Switch a tracker to a new project by stopping it and starting a new",
                 "change/ch 23": "Chance project assigned to an active tracker",
                 "cancel/c": "Cancel active tracker and dismiss time",
+                "reset": "Resets time of active tracker"
                 }
             }
 
@@ -694,7 +695,6 @@ def del_project():
         sys.exit(11)
 
     data = load()
-
     project_id = _get_project_id(data, sys.argv[2:])
 
     if project_id not in data.get("projects", {}).keys():
@@ -761,7 +761,6 @@ def start_tracking(project_id = None):
         sys.exit(20)
 
     data = load()
-
     if project_id is None:
         project_id = _get_project_id(data, sys.argv[2])
 
@@ -920,6 +919,27 @@ def change_tracking():
     data["tracking"]["project"] = project_id
 
     msg = "Tracker changed to project {name}".format(name = _project_name(data, project_id))
+    print(msg)
+    save(data, msg)
+
+
+def reset_tracking():
+    """Reset start point to now() of an active tracker.
+
+    This will reset the start of the tracker to the current time and
+    basically resets the tracker.
+    """
+    data = load()
+    if not data["tracking"]["active"]:
+        print("No active tracker")
+        sys.exit(22)
+
+    project_id = data["tracking"]["project"]
+
+    # Reset tracker
+    data["tracking"]["started"] = _timestamp()
+
+    msg = "Tracker resetted for project {name}".format(name=_project_name(data, project_id))
     print(msg)
     save(data, msg)
 
@@ -1230,6 +1250,8 @@ elif sys.argv[1].lower() == "ch" or sys.argv[1].lower() == "change":
     change_tracking()
 elif sys.argv[1].lower() == "c" or sys.argv[1].lower() == "cancel":
     cancel_tracking()
+elif sys.argv[1].lower() == "reset":
+    reset_tracking()
 
 else:
     usage()
