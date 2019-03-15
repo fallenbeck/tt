@@ -794,8 +794,8 @@ def start_tracking(project_id = None):
     data["tracking"]["started"] = _timestamp()
 
     msg = "Tracker started for project {name}".format(name=_project_name(data, project_id))
-    save(data, msg)
     print(msg)
+    save(data, msg)
 
 
 def stop_tracking():
@@ -822,14 +822,12 @@ def stop_tracking():
         data["projects"][project_id]["history"] = history
 
         msg = "Tracker stopped for project {name} after {duration} ({hf:1.2f} hours)".format(name=_project_name(data, project_id), duration=hhmm, hf=hf)
-        print(msg)
 
     except Exception as e:
         # We have to deal with an entry we cannot read (and parse) correctly.
         # This might happen if the tracker refers to a non-existing project
         # ID. We should simply deactivate the tracker.
         msg = "Tracker stopped but an error occurred: {}".format(e)
-        print(msg)
 
     # Save the project_id as last_project (if it is a normal project)
     if project_id.isdigit():
@@ -840,6 +838,7 @@ def stop_tracking():
     data["tracking"]["project"] = None
     data["tracking"]["started"] = None
 
+    print(msg)
     save(data, msg)
 
 
