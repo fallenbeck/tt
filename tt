@@ -589,6 +589,7 @@ def usage():
                 "resume/r": "Resume tracker either from pause (by unpausing project) or by creating a new tracker for the last used project",
                 "show/s": "Show tracked times for all projects",
                 "show/s 23": "Show tracked times and some additional information for project 23",
+                "cancel/c": "Cancel active tracker and dismiss time",
                 }
             }
 
@@ -839,6 +840,40 @@ def stop_tracking():
     data["tracking"]["project"] = None
     data["tracking"]["started"] = None
 
+    save(data, msg)
+
+
+def cancel_tracking():
+    """Cancel a tracker: Stop it and dismiss the tracked time.
+
+    Stop the tracker, dismiss the time it has tracked and
+    reset values in the tracking section of the data file.
+    """
+    data = load()
+    if not data["tracking"]["active"]:
+        print("No active tracker")
+        sys.exit(22)
+
+    try:
+        project_id = data["tracking"]["project"]
+        msg = "Cancelled tracker for project {name}".format(name = _project_name(data, project_id))
+
+    except Exception as e:
+        # We have to deal with an entry we cannot read (and parse) correctly.
+        # This might happen if the tracker refers to a non-existing project
+        # ID. We should simply deactivate the tracker.
+        msg = "Tracker cancelled but an error occurred: {}".format(e)
+
+    # Save the project_id as last_project (if it is a normal project)
+    if project_id.isdigit():
+        data["meta"]["last_project"] = project_id
+
+    # reset tracking settings
+    data["tracking"]["active"] = False
+    data["tracking"]["project"] = None
+    data["tracking"]["started"] = None
+
+    print(msg)
     save(data, msg)
 
 
@@ -1120,6 +1155,8 @@ elif sys.argv[1].lower() == "st" or sys.argv[1].lower() == "status":
     status()
 elif sys.argv[1].lower() == "log":
     print_log()
+elif sys.argv[1].lower() == "cleanup":
+    cleanup()
 
 elif sys.argv[1].lower() == "l" or sys.argv[1].lower() == "list":
     list_projects()
@@ -1139,8 +1176,9 @@ elif sys.argv[1].lower() == "stop":
     stop_tracking()
 elif sys.argv[1].lower() == "s" or sys.argv[1].lower() == "show":
     show()
-elif sys.argv[1].lower() == "c" or sys.argv[1].lower() == "cleanup":
-    cleanup()
+elif sys.argv[1].lower() == "c" or sys.argv[1].lower() == "cancel":
+    cancel_tracking()
+
 else:
     usage()
 
