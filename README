@@ -53,7 +53,7 @@ Usage
      pause/p               Pause an active tracker
      pause/p disable       Disable tracking of pause times
      pause/p enable        Enable tracking of pause times
-     resume/r              Resume tracker either from pause (by unpausing project) or by creating a new tracker for the last used project
+     resume/r              Resume tracker from paused project or from last project used
      show/s                Show tracked times for all projects
      show/s 23             Show tracked times and some additional information for project 23
      start 23              Start time tracking for project id 23
