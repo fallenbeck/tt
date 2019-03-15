@@ -880,7 +880,7 @@ def cancel_tracking():
 def switch_tracking():
     """Switch a tracker by stopping the active tracker and starting a new one.
 
-    This function is basically an alias of tt stop && tt start <project>.
+    This function is basically an alias of "tt stop && tt start <project>".
     """
     # data = load()
     # if not data["tracking"]["active"]:
@@ -901,7 +901,7 @@ def change_tracking():
 
     This function updates the project an already active tracker is tracking
     time in. It allows to reassign a tracker that has been started in a wrong
-    project
+    project.
     """
     if len(sys.argv) < 3:
         print("You must specify a project id")
@@ -928,6 +928,8 @@ def reset_tracking():
 
     This will reset the start of the tracker to the current time and
     basically resets the tracker.
+
+    Would be the same like "tt cancel && tt start <project>".
     """
     data = load()
     if not data["tracking"]["active"]:
