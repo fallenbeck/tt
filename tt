@@ -1340,7 +1340,7 @@ Parses the arguments and calls the appropriate functions.
 """
 
 if len(sys.argv) <= 1:
-    usage()
+    status()
 elif sys.argv[1].lower() == "init":
     init()
 elif sys.argv[1].lower() == "st" or sys.argv[1].lower() == "status":
