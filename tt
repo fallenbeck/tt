@@ -42,7 +42,7 @@ import sys
 
 
 # This variable defines the format version of the datafile
-DATAFILE_VERSION = 2
+DATAFILE_VERSION = 3
 
 
 # Set variables we need
@@ -417,25 +417,50 @@ def _file_version_upgrade(data = None):
 
     # Determine the version of the data file as well as the version
     # we need to migrate to 
-    from_version = data["meta"]["file_version"]
-    to_version = DATAFILE_VERSION
+    from_version = int(data["meta"]["file_version"])
+    to_version = int(DATAFILE_VERSION)
 
-    # Check if changes need to be made, return otherwise
+    # Check if changes need to be made, otherwise return data object
     if from_version == to_version:
         return data
 
-    # Creating a tuple
-    migration = (from_version, to_version)
+    current_version = from_version
+    while current_version < to_version:
+        if current_version == 1:
+            data["meta"]["file_version"] = 2
+            data["meta"]["last_project"] = None
+            data["config"] = {"log_pause_times": True, "log_actions": True,}
+            data["projects"]["p"] = {"name": "Pause", "history": []}
+            data["log"] = []
 
-    # Migrating from file version 1 to version 2
-    if migration == (1, 2):
-        data["meta"]["file_version"] = 2
-        data["meta"]["last_project"] = None
-        data["config"] = {"log_pause_times": True, "log_actions": True,}
-        data["projects"]["p"] = {"name": "Pause", "history": []}
-        data["log"] = []
+        if current_version == 2:
+            data["meta"]["file_version"] = 3
+            data["tracking"]["comment"] = None  # Comments are stored here (as str)
 
-    save(data, "Converted data file format from version {f} to version {t}".format(f = from_version, t = to_version))
+            for project_id, project_data in data["projects"].items():
+
+                # We need to build a new history for every project
+                # The old history contains 2-tuples with the start time
+                # and the end time of the tracker, the new history
+                # is a 3-tuple conainting an additional string
+                # representing a comment regarding this stint.
+                # This comment is None by default.
+                old_history = project_data["history"]
+                new_history = []
+
+                for (start_tracking, end_tracking) in old_history:
+                    print("Updating tuple: {} - {}".format(start_tracking, end_tracking))
+                    new_tuple = (start_tracking, end_tracking, None)
+                    new_history.append(new_tuple)
+
+                data["projects"][project_id]["history"] = new_history
+
+        # increment current_version to carry out next update if needed
+        current_version += 1
+
+    msg = "Converted data file format from version {f} to version {t}".format(f = from_version, t = to_version)
+    save(data, msg)
+    print(msg)
 
     # Return upgraded data object
     return data
@@ -465,7 +490,7 @@ def init():
         data = {
                 "meta": {
                     "last_id": 0,
-                    "file_version": 2,
+                    "file_version": 3,
                     "last_project": None,
                     },
                 "config": {
@@ -476,6 +501,7 @@ def init():
                     "active": False,
                     "project": None,
                     "started": None,
+                    "comment": None,
                     },
                 "projects": {
                     # id:    {
@@ -603,7 +629,7 @@ def usage():
                 "add/a project name": "Add new project with name \"project name\"",
                 "delete/d 23": "Delete project with id 23",
                 "list/l": "List projects and their ids",
-                "rename 23 new name": "Rename project with ID 23 to \"new name\""
+                "rename 23 new name": "Rename project with ID 23 to \"new name\"",
                 },
             "Tracking": {
                 "DESC": "These commands allow to start and stop trackers as well as displaying tracked times in existing projects.",
@@ -617,8 +643,9 @@ def usage():
                 "show/s 23": "Show tracked times and some additional information for project 23",
                 "switch/sw 23": "Switch a tracker to a new project by stopping it and starting a new",
                 "change/ch 23": "Chance project assigned to an active tracker",
-                "cancel/c": "Cancel active tracker and dismiss time",
-                "reset": "Resets time of active tracker"
+                "cancel": "Cancel active tracker and dismiss time",
+                "reset": "Reset time of active tracker",
+                "comment/c comment": "Add \"comment\" to the current active tracker",
                 }
             }
 
@@ -843,12 +870,17 @@ def stop_tracking():
         stopped = _timestamp()
         diff, hf, hhmm = _time_diff(started, stopped)
 
+        comment = data["tracking"]["comment"]
+
         # add tuple to history
         history = data["projects"][project_id]["history"]
-        history.append( (started, stopped) )
+        history.append( (started, stopped, comment) )
         data["projects"][project_id]["history"] = history
 
         msg = "Tracker stopped for project {name} after {duration} ({hf:1.2f} hours)".format(name=_project_name(data, project_id), duration=hhmm, hf=hf)
+
+        if comment:
+            msg += ": \"{c}\"".format(c = comment)
 
     except Exception as e:
         # We have to deal with an entry we cannot read (and parse) correctly.
@@ -864,6 +896,7 @@ def stop_tracking():
     data["tracking"]["active"] = False
     data["tracking"]["project"] = None
     data["tracking"]["started"] = None
+    data["tracking"]["comment"] = None
 
     print(msg)
     save(data, msg)
@@ -898,6 +931,7 @@ def cancel_tracking():
     data["tracking"]["active"] = False
     data["tracking"]["project"] = None
     data["tracking"]["started"] = None
+    data["tracking"]["comment"] = None
 
     print(msg)
     save(data, msg)
@@ -1011,9 +1045,11 @@ def pause_tracking():
         stopped = _timestamp()
         diff, hf, hhmm = _time_diff(started, stopped)
 
+        comment = data["tracking"]["comment"]
+
         # add tuple to history
         history = data["projects"][project_id]["history"]
-        history.append( (started, stopped) )
+        history.append( (started, stopped, comment) )
         data["projects"][project_id]["history"] = history
 
         # Start the pause tracker
@@ -1021,7 +1057,12 @@ def pause_tracking():
         data["tracking"]["active"] = True
         data["tracking"]["project"] = 'p'
         data["tracking"]["started"] = _timestamp()
+        data["tracking"]["comment"] = None
+
         msg = "Paused tracker for project {name} after {duration} ({hf:1.2f} hours)".format(name=_project_name(data, project_id), duration=hhmm, hf=hf)
+
+        if comment:
+            msg += ": \"{c}\"".format(c = comment)
 
         # Save the project_id as last_project
         data["meta"]["last_project"] = project_id
@@ -1070,6 +1111,8 @@ def resume_tracking():
         stopped = _timestamp()
         diff, hf, hhmm = _time_diff(started, stopped)
 
+        comment = data["tracking"]["comment"]
+
         # add tuple to history
         history = data["projects"]['p']["history"]
         history.append( (started, stopped) )
@@ -1080,7 +1123,13 @@ def resume_tracking():
         data["tracking"]["active"] = True
         data["tracking"]["project"] = project_id
         data["tracking"]["started"] = _timestamp()
+        data["tracking"]["comment"] = None
+
         msg = "Resumed tracker for project {name} after pause of {duration} ({hf:1.2f} hours)".format(name=_project_name(data, project_id), duration=hhmm, hf=hf)
+
+        if comment:
+            msg += ": \"{c}\"".format(c = comment)
+
         print(msg)
 
     except Exception as e:
@@ -1093,6 +1142,38 @@ def resume_tracking():
     save(data, msg)
 
 
+def add_comment():
+    """Switch a tracker by stopping the active tracker and starting a new one.
+
+    This function is basically an alias of "tt stop && tt start <project>".
+    """
+    # data = load()
+    # if not data["tracking"]["active"]:
+    #     print("No active tracker")
+    #     sys.exit(22)
+
+    data = load()
+
+    if not data["tracking"]["active"]:
+        print("No active tracker")
+        sys.exit(22)
+
+    if len(sys.argv) < 3:
+        print("You must provide (at least one word as) a comment")
+
+    comment = " ".join(sys.argv[2:]).strip()
+
+    data["tracking"]["comment"] = comment
+
+    msg = "Added comment to project {name}: {comment}".format(name=_project_name(data, project_id), comment = comment)
+    save(data, msg)
+    print(msg)
+
+
+
+#############################################################################
+### Output
+#############################################################################
 
 def show(limit = 10):
     """Show the recorded times.
@@ -1144,6 +1225,7 @@ def show(limit = 10):
         running_tracker = data["tracking"]["active"]
         running_project = data["tracking"]["project"]
         running_since = data["tracking"]["started"]
+        running_comment = data["tracking"]["comment"]
         running_since_day, running_since_time = _to_day_and_time(running_since)
     except:
         # in case of any error, set running_tracker to False
@@ -1202,7 +1284,7 @@ def show(limit = 10):
             history_to_display = history
 
         for item in sorted(history_to_display):
-            started, stopped = item
+            started, stopped, comment = item
             secs, hf, hhmm = _time_diff(started, stopped)
             total = total + hf
             day, time_started = _to_day_and_time(started)
@@ -1215,8 +1297,14 @@ def show(limit = 10):
                 str_day = " "*16
                 day_total = day_total + hf
                 str_day_total = "{space}{dt:1.2f} hours total".format(space = " "*6, dt = day_total)
+
+            if not comment:
+                comment = ""
+            else:
+                str_day_total = " "*16 + " "*6
+                comment = "{color}{comment}{end}".format(color = bcolors.CYAN, comment = comment, end = bcolors.END)
             
-            print("              {sd}{started:5} - {stopped:11}{hhmm:7}({hf:1.2f} hours){sdt}".format(sd=str_day, started=time_started, stopped=time_stopped, hhmm=hhmm, hf=hf, sdt = str_day_total))
+            print("              {sd}{started:5} - {stopped:11}{hhmm:7}({hf:1.2f} hours){sdt}      {c}".format(sd=str_day, started=time_started, stopped=time_stopped, hhmm=hhmm, hf=hf, sdt = str_day_total, c = comment))
             old_day = day
 
         if running_tracker and running_project == project_id:
@@ -1226,7 +1314,14 @@ def show(limit = 10):
             str_day = "{day:16}".format(day=running_since_day)
             if running_since_day == old_day:
                 str_day = " "*16
-            print("              {sd}{started:5} - {stopped:11}{hhmm:7}({hf:1.2f} hours)      tracking".format(sd=str_day, started=running_since_time, stopped=time_stopped, hhmm=hhmm, hf=hf))
+
+            if not running_comment:
+                running_comment = ""
+            else:
+                running_comment = "{color}{comment}{end}".format(color = bcolors.CYAN, comment = running_comment, end = bcolors.END)
+
+            
+            print("              {sd}{started:5} - {stopped:11}{hhmm:7}({hf:1.2f} hours)      tracking              {c}".format(sd=str_day, started=running_since_time, stopped=time_stopped, hhmm=hhmm, hf=hf, c = running_comment))
 
         if detailed_view:
             print("              Total time tracked: {hf:9.2f} hours".format(project=_project_name(data, project_id=project_id), hf=total))
@@ -1276,10 +1371,13 @@ elif sys.argv[1].lower() == "sw" or sys.argv[1].lower() == "switch":
     switch_tracking()
 elif sys.argv[1].lower() == "ch" or sys.argv[1].lower() == "change":
     change_tracking()
-elif sys.argv[1].lower() == "c" or sys.argv[1].lower() == "cancel":
+elif sys.argv[1].lower() == "cancel":
     cancel_tracking()
 elif sys.argv[1].lower() == "reset":
     reset_tracking()
+elif sys.argv[1].lower() == "c" or sys.argv[1].lower() == "comm" or sys.argv[1].lower() == "comment":
+    add_comment()
+
 
 else:
     usage()
