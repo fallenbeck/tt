@@ -26,6 +26,9 @@ dateformat = "%Y-%m-%dT%H:%M:%S"
 #   22  No tracker found
 #   23  Not allowed to start or stop tracker for special project
 #   24  Tracker already paused
+#   30  Alias or command not specified when adding alias
+#   31  Invalid command when trying to add alias
+#   32  Alias not found
 #   42  Disabled in local configuration
 
 
@@ -42,12 +45,16 @@ import sys
 
 
 # This variable defines the format version of the datafile
-DATAFILE_VERSION = 3
+DATAFILE_VERSION = 4
 
 
 # Set variables we need
 f = os.path.abspath(os.path.expanduser(datafile))
 my_name = os.path.basename(sys.argv[0])
+
+
+# Cache for data
+DATA = None
 
 
 # Sanity check: only proceed if we are in a python3 environment
@@ -347,6 +354,10 @@ def load():
     :return:    Data object representing the current state
     :rtype:     dict
     """
+    global DATA
+    if DATA:
+        return DATA
+
     try:
         fp = open(f, "r")
         data = json.load(fp)
@@ -364,6 +375,7 @@ def load():
 
     # Apply upgrade to the data read from the disk (if needed)
     data = _file_version_upgrade(data)
+    DATA = data
 
     return data
 
@@ -380,9 +392,11 @@ def save(data, msg = None):
     :type msg:      str
     """
     if data is not None:
-
         if msg is not None and data.get("config", {}).get("log_actions", False):
             data.get("log", []).append("{ts}  {msg}".format(ts = _timestamp().replace('T', ' '), msg = msg))
+
+        global DATA
+        DATA = data
 
         try:
             fp = open(f, "w")
@@ -455,6 +469,21 @@ def _file_version_upgrade(data = None):
 
                 data["projects"][project_id]["history"] = new_history
 
+        if current_version == 3:
+            data["meta"]["file_version"] = 4
+            data["aliases"] = {
+                    "st": "status",
+                    "a": "add",
+                    "d": "delete",
+                    "l": "list",
+                    "ch": "change",
+                    "c": "comment",
+                    "p": "pause",
+                    "r": "resume",
+                    "s": "show",
+                    "sw": "switch",
+                    }
+
         # increment current_version to carry out next update if needed
         current_version += 1
 
@@ -490,7 +519,7 @@ def init():
         data = {
                 "meta": {
                     "last_id": 0,
-                    "file_version": 3,
+                    "file_version": 4,
                     "last_project": None,
                     },
                 "config": {
@@ -503,6 +532,18 @@ def init():
                     "started": None,
                     "comment": None,
                     },
+                "aliases": {
+                    "st": "status",
+                    "a": "add",
+                    "d": "delete",
+                    "l": "list",
+                    "ch": "change",
+                    "c": "comment",
+                    "p": "pause",
+                    "r": "resume",
+                    "s": "show",
+                    "sw": "switch",
+                },
                 "projects": {
                     # id:    {
                         # "name": Projektname,
@@ -546,8 +587,14 @@ def status():
     else:
         since = data["tracking"]["started"]
         project_id = data["tracking"]["project"]
+        comment = data["tracking"]["comment"]
         _, hf, hhmm = _time_diff(since, _timestamp())
-        print("Tracking time in project {name} for {hhmm} ({hf:0.2f} hours)".format(name=_project_name(data, project_id), hf=hf, hhmm=hhmm))
+        msg = "Tracking time in project {name} for {hhmm} ({hf:0.2f} hours)".format(name=_project_name(data, project_id), hf=hf, hhmm=hhmm)
+
+        if comment:
+            msg += ": \"{c}\"".format(c = comment)
+
+        print(msg)
 
 def print_log(limit = 20):
     """Print log.
@@ -610,50 +657,124 @@ def cleanup():
     print("Successfully cleaned up {}".format(datafile))
 
 
-def usage():
-    """Print the list of commands that are supported.
+def parse_command(command_or_alias):
+    """Returns the name of a command (for an alias if defined).
 
-    This function is called everytime  the user calls tt with no or too
-    few arguments.
+    The data file allows aliases to be defined to shorten commands the user
+    needs to type in.
+    This function returns the full command for a given alias if this
+    alias exists in the data file.
+    If the complete function name is given in the alias attribute and
+    such a command exists, this name will also be returned.
+
+    :return:    Command name that should be carried out
+    :rtype:     str or None
+    """
+    data = load()
+    commands = get_commands()
+
+    if command_or_alias in commands:
+        return command_or_alias
+    else:
+        resolved_alias = data.get("aliases", {}).get(command_or_alias, None)
+        if resolved_alias and resolved_alias in commands:
+            return resolved_alias
+
+    return None
+
+
+
+def get_command_groups():
+    """Defines the commands and the groups where they belong.
+
+    The dict that will be returned contains other dictionaries, each
+    representing a group of commands. These dictionaries can contain
+    a reserved key DESC that provides a human-readable short description
+    of this command group.
+
+    :return:    Group of commands used to display the help message
+    :rtype:     dict of dicts
     """
     group = {
             "Generic commands": {
                 "DESC": "Commands to initialize {} and perform management tasks.".format(my_name),
                 "init": "Initialize new data file",
-                "status/st": "Display tracker status information",
-                "cleanup/c": "Cleanup and reorganize data file",
+                "status": "Display tracker status information",
+                "cleanup": "Cleanup and reorganize data file",
                 "log": "Show activity log",
                 "log enable": "Enable activity log",
                 "log disable": "Disable activity log",
+                "aliases": "Shows list of all defined aliases",
+                "alias a command": "Create or updates alias a for a particular command",
+                "unalias a": "Remove alias a",
                 },
             "Projects": {
                 "DESC": "Before you can start a tracker you need to create a project to which this tracker is assigned. These commands allow you to add, delete and manage existing projects.",
-                "add/a project name": "Add new project with name \"project name\"",
-                "delete/d 23": "Delete project with id 23",
-                "list/l": "List projects and their ids",
+                "add project name": "Add new project with name \"project name\"",
+                "delete 23": "Delete project with id 23",
+                "list": "List projects and their ids",
                 "rename 23 new name": "Rename project with ID 23 to \"new name\"",
                 },
             "Tracking": {
                 "DESC": "These commands allow to start and stop trackers as well as displaying tracked times in existing projects.",
                 "start 23": "Start time tracking for project id 23",
                 "stop": "Stop active time tracking",
-                "pause/p": "Pause an active tracker",
-                "pause/p disable": "Disable tracking of pause times",
-                "pause/p enable": "Enable tracking of pause times",
-                "resume/r": "Resume tracker from paused project or from last project used",
-                "show/s": "Show tracked times for all projects",
-                "show/s 23": "Show tracked times and some additional information for project 23",
-                "switch/sw 23": "Switch a tracker to a new project by stopping it and starting a new",
-                "change/ch 23": "Chance project assigned to an active tracker",
+                "pause": "Pause an active tracker",
+                "pause disable": "Disable tracking of pause times",
+                "pause enable": "Enable tracking of pause times",
+                "resume": "Resume tracker from paused project or from last project used",
+                "show": "Show tracked times for all projects",
+                "show 23": "Show tracked times and some additional information for project 23",
+                "switch 23": "Switch a tracker to a new project by stopping it and starting a new",
+                "change 23": "Chance project assigned to an active tracker",
                 "cancel": "Cancel active tracker and dismiss time",
                 "reset": "Reset time of active tracker",
-                "comment/c comment": "Add \"comment\" to the current active tracker",
+                "comment comment": "Add \"comment\" to the current active tracker",
                 }
             }
 
+    dict_of_aliases = get_aliases()
+    if len(dict_of_aliases):
+        dict_of_aliases["DESC"] = "Aliases defined in the data file"
+        group["Aliases"] = dict_of_aliases
+
+    return group
+
+
+def get_commands():
+    """Returns a set of all commands available by this version of tt.
+
+    This set does not contain aliases defined in the data file but only
+    full commands. It will be used for input parsing.
+
+    :return:    All commands available to the user
+    :rtype:     Set of strings
+    """
+    groups = get_command_groups()
+    result = set()
+
+    for group_name, group in groups.items():
+        if group_name != "Aliases":
+            for command in group.keys():
+                if command != "DESC":
+                    result.add(command.split(" ")[0])
+
+    return result
+
+
+
+
+def usage():
+    """Print the list of commands that are supported.
+
+    This function is called everytime  the user calls tt with no or too
+    few arguments.
+    """
+    group = get_command_groups()
+
     # Display the commands/dicts
     first = True
-    for group, commands in sorted(group.items()):
+    for group, commands in group.items():
         if first:
             first = False
         else:
@@ -669,6 +790,80 @@ def usage():
             if command is not "DESC":
                 print(bcolors.YELLOW, "    {cmd:20s}".format(cmd=command), bcolors.END, description)
 
+
+
+def get_aliases():
+    """Return a dict containing all aliases defined.
+
+    Key is the alias, value is the command to call.
+
+    :return:    All defined aliases
+    :rtype:     dict
+    """
+    data = load()
+    aliases = data.get("aliases", {})
+
+    dict_of_aliases = {}
+    if len(aliases) > 0:
+
+        for alias, command in aliases.items():
+            dict_of_aliases[alias] = command
+
+    return dict_of_aliases
+
+
+
+
+def print_aliases():
+    """Print list of defined aliases.
+    """
+    aliases = get_aliases()
+    for alias, command in sorted(aliases.items()):
+        print("{:>4}    {}".format(alias, command))
+
+
+def alias():
+    """Add or update an alias for a particular command.
+
+    The alias will only be added to the data file if a valid command is
+    specified.
+    """
+    if len(sys.argv) < 4:
+        print("You must specify alias and command")
+        sys.exit(30)
+
+    data = load()
+    alias = sys.argv[2]
+    command = sys.argv[3]
+
+    if command in get_commands():
+        data["aliases"][alias] = command
+        msg = "Created alias {alias} for command {cmd}".format(alias = alias, cmd = command)
+        save(data, msg)
+        print(msg)
+    else:
+        print("Could not create alias {} for {}: Invalid command".format(alias, command))
+        sys.exit(31)
+
+
+def unalias():
+    """Removes alias from the data file.
+    """
+    if len(sys.argv) < 3:
+        print("You must specify alias to remove")
+        sys.exit(30)
+
+    data = load()
+    alias = sys.argv[2]
+
+    if alias in data["aliases"].keys():
+        msg = "Removed alias {alias} for {cmd}".format(alias = alias, cmd = data["aliases"][alias])
+        del data["aliases"][alias]
+        save(data, msg)
+        print(msg)
+    else:
+        print("Alias {} not defined".format(alias))
+        sys.exit(32)
 
 
 #############################################################################
@@ -1165,6 +1360,7 @@ def add_comment():
 
     comment = " ".join(sys.argv[2:]).strip()
 
+    project_id = data["tracking"]["project"]
     data["tracking"]["comment"] = comment
 
     msg = "Added comment to project {name}: {comment}".format(name=_project_name(data, project_id), comment = comment)
@@ -1303,7 +1499,8 @@ def show(limit = 10):
             if not comment:
                 comment = ""
             else:
-                str_day_total = " "*16 + " "*6
+                # str_day_total = " "*16 + " "*6
+                str_day_total += " "*(22 - len(str_day_total))
                 comment = "{color}{comment}{end}".format(color = bcolors.CYAN, comment = comment, end = bcolors.END)
             
             print("              {sd}{started:5} - {stopped:11}{hhmm:7}({hf:1.2f} hours){sdt}      {c}".format(sd=str_day, started=time_started, stopped=time_stopped, hhmm=hhmm, hf=hf, sdt = str_day_total, c = comment))
@@ -1341,43 +1538,54 @@ Parses the arguments and calls the appropriate functions.
 
 if len(sys.argv) <= 1:
     status()
-elif sys.argv[1].lower() == "init":
+    sys.exit(0)
+
+cmd = parse_command(sys.argv[1].lower())
+
+if cmd == "init":
     init()
-elif sys.argv[1].lower() == "st" or sys.argv[1].lower() == "status":
+elif cmd == "status":
     status()
-elif sys.argv[1].lower() == "log":
+elif cmd == "log":
     print_log()
-elif sys.argv[1].lower() == "cleanup":
+elif cmd == "cleanup":
     cleanup()
 
-elif sys.argv[1].lower() == "l" or sys.argv[1].lower() == "list":
+elif cmd == "aliases":
+    print_aliases()
+elif cmd == "alias":
+    alias()
+elif cmd == "unalias":
+    unalias()
+
+elif cmd == "list":
     list_projects()
-elif sys.argv[1].lower() == "a" or sys.argv[1].lower() == "add":
+elif cmd == "add":
     add_project()
-elif sys.argv[1].lower() == "d" or sys.argv[1].lower() == "del" or sys.argv[1].lower() == "delete":
+elif cmd == "delete":
     del_project()
-elif sys.argv[1].lower() == "rename":
+elif cmd == "rename":
     rename_project()
-elif sys.argv[1].lower() == "s" or sys.argv[1].lower() == "show":
+elif cmd == "show":
     show()
 
-elif sys.argv[1].lower() == "p" or sys.argv[1].lower() == "pause":
+elif cmd == "pause":
     pause_tracking()
-elif sys.argv[1].lower() == "r" or sys.argv[1].lower() == "res" or sys.argv[1].lower() == "resume":
+elif cmd == "resume":
     resume_tracking()
-elif sys.argv[1].lower() == "start":
+elif cmd == "start":
     start_tracking()
-elif sys.argv[1].lower() == "stop":
+elif cmd == "stop":
     stop_tracking()
-elif sys.argv[1].lower() == "sw" or sys.argv[1].lower() == "switch":
+elif cmd == "switch":
     switch_tracking()
-elif sys.argv[1].lower() == "ch" or sys.argv[1].lower() == "change":
+elif cmd == "change":
     change_tracking()
-elif sys.argv[1].lower() == "cancel":
+elif cmd == "cancel":
     cancel_tracking()
-elif sys.argv[1].lower() == "reset":
+elif cmd == "reset":
     reset_tracking()
-elif sys.argv[1].lower() == "c" or sys.argv[1].lower() == "comm" or sys.argv[1].lower() == "comment":
+elif cmd == "comment":
     add_comment()
 
 

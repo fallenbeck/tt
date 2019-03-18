@@ -29,39 +29,57 @@ Usage
  Generic commands 
      Commands to initialize tt and perform management tasks.
 
-     cleanup/c             Cleanup and reorganize data file
+     alias a command       Create or updates alias a for a particular command
+     aliases               Shows list of all defined aliases
+     cleanup               Cleanup and reorganize data file
      init                  Initialize new data file
      log                   Show activity log
      log disable           Disable activity log
      log enable            Enable activity log
-     status/st             Display tracker status information
+     status                Display tracker status information
+     unalias a             Remove alias a
 
 
  Projects 
      Before you can start a tracker you need to create a project to which this tracker is assigned. These commands allow you to add, delete and manage existing projects.
 
-     add/a project name    Add new project with name "project name"
-     delete/d 23           Delete project with id 23
-     list/l                List projects and their ids
+     add project name      Add new project with name "project name"
+     delete 23             Delete project with id 23
+     list                  List projects and their ids
      rename 23 new name    Rename project with ID 23 to "new name"
 
 
  Tracking 
      These commands allow to start and stop trackers as well as displaying tracked times in existing projects.
 
-     cancel/c              Cancel active tracker and dismiss time
-     change/ch 23          Chance project assigned to an active tracker
-     pause/p               Pause an active tracker
-     pause/p disable       Disable tracking of pause times
-     pause/p enable        Enable tracking of pause times
-     reset                 Resets time of active tracker
-     resume/r              Resume tracker from paused project or from last project used
-     show/s                Show tracked times for all projects
-     show/s 23             Show tracked times and some additional information for project 23
+     cancel                Cancel active tracker and dismiss time
+     change 23             Chance project assigned to an active tracker
+     comment comment       Add "comment" to the current active tracker
+     pause                 Pause an active tracker
+     pause disable         Disable tracking of pause times
+     pause enable          Enable tracking of pause times
+     reset                 Reset time of active tracker
+     resume                Resume tracker from paused project or from last project used
+     show                  Show tracked times for all projects
+     show 23               Show tracked times and some additional information for project 23
      start 23              Start time tracking for project id 23
      stop                  Stop active time tracking
-     switch/sw 23          Switch a tracker to a new project by stopping it and starting a new
+     switch 23             Switch a tracker to a new project by stopping it and starting a new
 
+
+ Aliases 
+     Aliases defined in the data file
+
+     a                     add
+     c                     comment
+     ch                    change
+     d                     delete
+     l                     list
+     p                     pause
+     r                     resume
+     s                     show
+     st                    status
+     sw                    switch
 
 
 Frequently Asked Questions
@@ -125,25 +143,28 @@ consecutive list of IDs.
 Exit Codes
 ==========
 
-Exit Code   Meaning
--------------------
-   0        OK
-   1        Python Version < 3.x
-   2        Data file should be initialized but does already exist
-   3        Data file not found
-   4        Other exception while trying to read data file
-   5        Could not read data from data file
-   7        Exception while saving/writing data to data file
-  10        Project's name or ID not specified when trying to add a new project
-  11        Project's name or ID not specified when trying to delete/rename p.
-  12        Project with given name or ID could not be found
-  13        Not allowed to alter special project
-  20        Project's name or ID not specified when trying to start tracker
-  21        Tracker already started
-  22        No tracker found
-  23        Not allowed to start or stop tracker for special project
-  24        Tracker already paused
-  42        Disabled in local configuration
+Code  Meaning
+-----+---------------------------------------------------------------------
+   0  OK
+   1  Python Version < 3.x
+   2  Data file should be initialized but does already exist
+   3  Data file not found
+   4  Other exception while trying to read data file
+   5  Could not read data from data file
+   7  Exception while saving/writing data to data file
+  10  Project's name or ID not specified when trying to add a new project
+  11  Project's name or ID not specified when trying to delete/rename p.
+  12  Project with given name or ID could not be found
+  13  Not allowed to alter special project
+  20  Project's name or ID not specified when trying to start tracker
+  21  Tracker already started
+  22  No tracker found
+  23  Not allowed to start or stop tracker for special project
+  24  Tracker already paused
+  30  Alias or command not specified when adding alias
+  31  Invalid command when trying to add alias
+  32  Alias not found
+  42  Disabled in local configuration
 
 
 Contact
