@@ -531,14 +531,16 @@ def status():
     recent work period.
     """
     data = load()
-    number_of_projects = len(data["projects"])
 
-    # If pause times should not be logged we need to hide the project
-    # from the user
-    if not data.get("config", {}).get("log_pause_times", False):
-        number_of_projects -= 1
+    # number_of_projects = len(data["projects"])
 
-    print("{} projects".format(number_of_projects))
+    # # If pause times should not be logged we need to hide the project
+    # # from the user
+    # if not data.get("config", {}).get("log_pause_times", False):
+    #     number_of_projects -= 1
+
+    # print("{} projects".format(number_of_projects))
+
     if not data["tracking"]["active"]:
         print("No active time tracking")
     else:
