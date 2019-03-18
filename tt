@@ -435,7 +435,7 @@ def _file_version_upgrade(data = None):
     to_version = int(DATAFILE_VERSION)
 
     # Check if changes need to be made, otherwise return data object
-    if from_version == to_version:
+    if from_version >= to_version:
         return data
 
     current_version = from_version
