@@ -45,7 +45,7 @@ import sys
 
 
 # This variable defines the format version of the datafile
-DATAFILE_VERSION = 4
+DATAFILE_VERSION = 5
 
 
 # Set variables we need
@@ -194,9 +194,6 @@ def _get_list_of_project_ids(only_numeric = False):
 
     # print("Return (only_numeric = {}): {}".format(only_numeric, result))
     return result
-
-
-
 
 
 def _get_project_name(data, project_id):
@@ -520,6 +517,30 @@ def _file_version_upgrade(data = None):
                     "s": "show",
                     "sw": "switch",
                     }
+
+        if current_version == 4:
+            # This version fixes a problem with the data file.
+            # We had a problem in the resume_tracking() function that
+            # prevented the comment from being written to the pause project's
+            # history. This would case an error when show() is called.
+            data["meta"]["file_version"] = 5
+
+
+            # We need to rebuild the history again.
+            # This time, only the pause project (ID: p) is affected.
+
+            # Old comments have not been written when the project is paused
+            # therefore this information has been lost earlier. We will set
+            # the comment value to None.
+            old_history = data["projects"]["p"]["history"]
+            new_history = []
+
+            for (start_tracking, end_tracking) in old_history:
+                print("Updating tuple: {} - {}".format(start_tracking, end_tracking))
+                new_tuple = (start_tracking, end_tracking, None)
+                new_history.append(new_tuple)
+
+            data["projects"]["p"]["history"] = new_history
 
         # increment current_version to carry out next update if needed
         current_version += 1
@@ -1346,7 +1367,7 @@ def resume_tracking():
 
         # add tuple to history
         history = data["projects"]['p']["history"]
-        history.append( (started, stopped) )
+        history.append( (started, stopped, comment) )
         data["projects"]['p']["history"] = history
 
         # Resume old tracker
