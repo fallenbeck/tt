@@ -170,6 +170,35 @@ def _get_project_id(data, project_id_or_name):
     return None
 
 
+def _get_list_of_project_ids(only_numeric = False):
+    """Get a list of all existing project IDs.
+
+    :param only_numeric:    Return only numeric IDs (== normal projects)
+    :type only_numeric:     bool
+    :return:                All assigned project IDs
+    :rtype:                 list of str (!)
+    """
+    data = load()
+    all_project_ids = list(data["projects"].keys())
+    result = []
+
+    if not only_numeric:
+        result = all_project_ids
+    else:
+        for i in all_project_ids:
+            try:
+                int(i)
+                result.append(i)
+            except:
+                continue
+
+    # print("Return (only_numeric = {}): {}".format(only_numeric, result))
+    return result
+
+
+
+
+
 def _get_project_name(data, project_id):
     """Return the name of a project.
 
@@ -204,8 +233,16 @@ def _project_name(data, project_id):
     :rtype:             str or None
     """
     pname = _get_project_name(data, project_id)
+
+    # try:
+    #     is_numeric = int(project_id) in _get_list_of_project_ids(only_numeric = True)
+    # except:
+    #     is_numeric = False
+
+    is_numeric = project_id in _get_list_of_project_ids(only_numeric = True)
+
     if pname is not None:
-        if type(project_id) is int:
+        if is_numeric:
             # r = "\"{cpb}{pname}{ce}\" ({cib}{i}{ce})".format(
             r = "{cib}{i}{ce}: \"{pname}\"".format(
                                                      cpb=bcolors.END,
@@ -912,16 +949,7 @@ def add_project():
     # If there is a bogus last_id in our file, we need to make sure that no
     # existing data will be overwritten
 
-    # We build a list of ints here. It is noteworthy that .keys() gives us a
-    # dict_keys object of strings. The map function converts all these
-    # strings to int.
-    # existing_projects = set(data.get("projects", {}).keys())
-    # print(existing_projects)
-    # sys.exit(0)
-    # remove ID 'p' of pause project
-    # del existing_projects['p']
-    # existing_project_ids = map(int, data.get("projects", {}).keys())
-    existing_project_ids = [i for i in data.get("projects", {}).keys() if type(i) is int ]
+    existing_project_ids = _get_list_of_project_ids(only_numeric = True)
     if project_id in existing_project_ids:
         # Get the biggest existing project ID and increase it by 1
         project_id = max(existing_project_ids) + 1
