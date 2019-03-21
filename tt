@@ -940,7 +940,7 @@ def add_project():
     print(msg)
 
 
-def del_project():
+def delete_project():
     """Delete a project.
 
     You need to specify a project id.
@@ -1569,7 +1569,7 @@ elif cmd == "list":
 elif cmd == "add":
     add_project()
 elif cmd == "delete":
-    del_project()
+    delete_project()
 elif cmd == "rename":
     rename_project()
 elif cmd == "show":
