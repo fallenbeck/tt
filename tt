@@ -205,7 +205,7 @@ def _project_name(data, project_id):
     """
     pname = _get_project_name(data, project_id)
     if pname is not None:
-        if project_id.isdigit():
+        if type(project_id) is int:
             # r = "\"{cpb}{pname}{ce}\" ({cib}{i}{ce})".format(
             r = "{cib}{i}{ce}: \"{pname}\"".format(
                                                      cpb=bcolors.END,
@@ -915,7 +915,13 @@ def add_project():
     # We build a list of ints here. It is noteworthy that .keys() gives us a
     # dict_keys object of strings. The map function converts all these
     # strings to int.
-    existing_project_ids = map(int, data.get("projects", {}).keys())
+    # existing_projects = set(data.get("projects", {}).keys())
+    # print(existing_projects)
+    # sys.exit(0)
+    # remove ID 'p' of pause project
+    # del existing_projects['p']
+    # existing_project_ids = map(int, data.get("projects", {}).keys())
+    existing_project_ids = [i for i in data.get("projects", {}).keys() if type(i) is int ]
     if project_id in existing_project_ids:
         # Get the biggest existing project ID and increase it by 1
         project_id = max(existing_project_ids) + 1
