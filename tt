@@ -78,7 +78,7 @@ class bcolors:
     """
     # Reset
     END = "\033[0m"             # Text Reset
-    
+
     # Regular Colors
     BLACK = "\033[0;30m"        # Black
     RED = "\033[0;31m"          # Red
@@ -98,7 +98,7 @@ class bcolors:
     BPURPLE = "\033[1;35m"      # Purple
     BCYAN = "\033[1;36m"        # Cyan
     BWHITE = "\033[1;37m"       # White
-    
+
     # Underline
     UBLACK = "\033[4;30m"       # Black
     URED = "\033[4;31m"         # Red
@@ -1284,7 +1284,7 @@ def pause_tracking():
     if not data["config"]["log_pause_times"]:
         print("Disabled in local configuration - try \"tt stop\" instead")
         sys.exit(42)
-    
+
     try:
         # Stop the running "normal" tracker
         project_id = data["tracking"]["project"]
@@ -1505,7 +1505,7 @@ def show(limit = 10):
             # Key (project_id) not found
             # continue with next loop run
             continue
-   
+
         # Print the project's name
         if project_id.isdigit():
             print("    {cb}{i:>3}{ce}   {n}".format(cb=bcolors.YELLOW, i=project_id, ce=bcolors.END, n=project_name))
@@ -1518,11 +1518,11 @@ def show(limit = 10):
                 # Print only if there is no currently active tracker
                 # for this project
                 print("              No entries")
-    
+
         old_day = ""
         total = 0.0
         day_total = 0.0
-        
+
         if limit and limit < len(history):
             history_to_display = history[(len(history) - limit):]
             skipped = len(history) - limit
@@ -1531,7 +1531,7 @@ def show(limit = 10):
                     txt = "1 more entry"
                 else:
                     txt = "{nt} more entries".format(nt = skipped)
-                
+
                 print("              ... {t} - use \"{bin} {cmd} {pid}\" to display complete history".format(t=txt, bin=my_name, cmd=sys.argv[1], pid=project_id))
         else:
             history_to_display = history
@@ -1557,7 +1557,7 @@ def show(limit = 10):
                 # str_day_total = " "*16 + " "*6
                 str_day_total += " "*(22 - len(str_day_total))
                 comment = "{color}{comment}{end}".format(color = bcolors.CYAN, comment = comment, end = bcolors.END)
-            
+
             print("              {sd}{started:5} - {stopped:11}{hhmm:7}({hf:1.2f} hours){sdt}      {c}".format(sd=str_day, started=time_started, stopped=time_stopped, hhmm=hhmm, hf=hf, sdt = str_day_total, c = comment))
             old_day = day
 
@@ -1574,12 +1574,12 @@ def show(limit = 10):
             else:
                 running_comment = "{color}{comment}{end}".format(color = bcolors.CYAN, comment = running_comment, end = bcolors.END)
 
-            
+
             print("              {sd}{started:5} - {stopped:11}{hhmm:7}({hf:1.2f} hours)      tracking              {c}".format(sd=str_day, started=running_since_time, stopped=time_stopped, hhmm=hhmm, hf=hf, c = running_comment))
 
         if detailed_view:
             print("              Total time tracked: {hf:9.2f} hours".format(project=_project_name(data, project_id=project_id), hf=total))
-            
+
 
 
 #############################################################################
