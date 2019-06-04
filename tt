@@ -701,8 +701,8 @@ def cleanup():
     project_id = 0
     data["projects"] = {}
     for old_pid, project in old_projects.items():
-        if old_pid == "pause":
-            data["projects"]["pause"] = project
+        if old_pid == "p":
+            data["projects"]["p"] = project
         else:
             project_id = project_id + 1
             data["projects"][project_id] = project
