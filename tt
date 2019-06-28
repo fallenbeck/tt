@@ -56,8 +56,9 @@ f = os.path.abspath(os.path.expanduser(datafile))
 my_name = os.path.basename(sys.argv[0])
 
 
-# Cache for data
+# Global cache
 DATA = None
+ACTIONS = {}
 
 
 # Sanity check: only proceed if we are in a python3 environment
@@ -393,7 +394,7 @@ def load():
         fp = open(f, "r")
         data = json.load(fp)
         fp.close()
-    except OSError(2, os.strerror(2)) as e:
+    except OSError:
         print("Could not load data file. Please run", bcolors.YELLOW, "init", bcolors.END, "first.")
         sys.exit(3)
     except Exception as e:
@@ -572,7 +573,7 @@ def init():
         data = {
             "meta": {
                 "last_id": 0,
-                "file_version": 4,
+                "file_version": 5,
                 "last_project": None,
             },
             "config": {
@@ -606,7 +607,7 @@ def init():
                 }
             },
             "log": [],
-        },
+        }
 
         # ... and write it to data file
         save(data, "Initialized new data file")
@@ -1560,69 +1561,68 @@ def show(limit=10):
             print("              Total time tracked: {hf:9.2f} hours".format(project=_project_name(data, project_id=project_id), hf=total))
 
 
+def run(name):
+    ACTIONS.get(name, lambda: 'Invalid')()
+
+
 #############################################################################
 # Entry point
 #############################################################################
 
-"""Main function/entry point when starting the program.
+def main():
+    """Main function/entry point when starting the program.
 
-Parses the arguments and calls the appropriate functions.
-"""
+    Parses the arguments and calls the appropriate functions.
+    """
 
-if len(sys.argv) <= 1:
-    status()
-    sys.exit(0)
+    global ACTIONS
 
-cmd = parse_command(sys.argv[1].lower())
+    ACTIONS = {
+        'status': status,
+        'log': print_log,
+        'cleanup': cleanup,
+        'aliases': print_aliases,
+        'alias': alias,
+        'unalias': unalias,
+        'list': list_projects,
+        'add': add_project,
+        'delete': delete_project,
+        'rename': rename_project,
+        'show': show,
+        'pause': pause_tracking,
+        'resume': resume_tracking,
+        'start': start_tracking,
+        'stop': stop_tracking,
+        'switch': switch_tracking,
+        'change': change_tracking,
+        'cancel': cancel_tracking,
+        'reset': reset_tracking,
+        'comment': add_comment
+    }
 
-if cmd == "init":
-    init()
-elif cmd == "status":
-    status()
-elif cmd == "log":
-    print_log()
-elif cmd == "cleanup":
-    cleanup()
+    if len(sys.argv) <= 1:
+        status()
+        sys.exit(0)
 
-elif cmd == "aliases":
-    print_aliases()
-elif cmd == "alias":
-    alias()
-elif cmd == "unalias":
-    unalias()
+    if sys.argv[1].lower() == "init":
+        init()
+        sys.exit(0)
 
-elif cmd == "list":
-    list_projects()
-elif cmd == "add":
-    add_project()
-elif cmd == "delete":
-    delete_project()
-elif cmd == "rename":
-    rename_project()
-elif cmd == "show":
-    show()
-
-elif cmd == "pause":
-    pause_tracking()
-elif cmd == "resume":
-    resume_tracking()
-elif cmd == "start":
-    start_tracking()
-elif cmd == "stop":
-    stop_tracking()
-elif cmd == "switch":
-    switch_tracking()
-elif cmd == "change":
-    change_tracking()
-elif cmd == "cancel":
-    cancel_tracking()
-elif cmd == "reset":
-    reset_tracking()
-elif cmd == "comment":
-    add_comment()
+    cmd = parse_command(sys.argv[1].lower())
+    if cmd in ACTIONS:
+        run(cmd)
+    else:
+        usage()
 
 
-else:
-    usage()
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt:
+        print('Interrupted!')
+        try:
+            sys.exit(0)
+        except SystemExit:
+            os._exit(0)
 
 # EOF
