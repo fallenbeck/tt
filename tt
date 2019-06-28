@@ -573,7 +573,7 @@ def init():
         data = {
             "meta": {
                 "last_id": 0,
-                "file_version": 5,
+                "file_version": DATAFILE_VERSION,
                 "last_project": None,
             },
             "config": {
