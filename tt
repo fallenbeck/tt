@@ -7,7 +7,7 @@ datafile = "~/.tt.json"
 dateformat = "%Y-%m-%dT%H:%M:%S"
 
 # Exit codes
-# There are a couple of exit codes that can occur when running tt. 
+# There are a couple of exit codes that can occur when running tt.
 # Code  Meaning
 # -----+---------------------------------------------------------------------
 #    0  OK
@@ -464,7 +464,7 @@ def _file_version_upgrade(data = None):
         data = load()
 
     # Determine the version of the data file as well as the version
-    # we need to migrate to 
+    # we need to migrate to
     from_version = int(data["meta"]["file_version"])
     to_version = int(DATAFILE_VERSION)
 
@@ -1346,7 +1346,7 @@ def resume_tracking():
     """
     data = load()
 
-    # If resume is called and not tracker is active, we will start a 
+    # If resume is called and not tracker is active, we will start a
     # new tracker for the last project used
     if not data["tracking"]["active"]:
         start_tracking(data["meta"]["last_project"])
@@ -1566,8 +1566,14 @@ def show(limit = 10):
             _, hf, hhmm = _time_diff(running_since, _timestamp())
             total = total + hf
             str_day = "{day:16}".format(day=running_since_day)
+            #
+            str_day_total = ""
+
             if running_since_day == old_day:
                 str_day = " "*16
+                #
+                day_total = day_total + hf
+                str_day_total = "{space}{dt:1.2f} hours total (tracking)".format(space = " "*6, dt = day_total)
 
             if not running_comment:
                 running_comment = ""
@@ -1575,7 +1581,10 @@ def show(limit = 10):
                 running_comment = "{color}{comment}{end}".format(color = bcolors.CYAN, comment = running_comment, end = bcolors.END)
 
 
-            print("              {sd}{started:5} - {stopped:11}{hhmm:7}({hf:1.2f} hours)      tracking              {c}".format(sd=str_day, started=running_since_time, stopped=time_stopped, hhmm=hhmm, hf=hf, c = running_comment))
+            #print("              {sd}{started:5} - {stopped:11}{hhmm:7}({hf:1.2f} hours)      tracking              {c}".format(sd=str_day, started=running_since_time, stopped=time_stopped, hhmm=hhmm, hf=hf, c = running_comment))
+            #
+            print("              {sd}{started:5} - {stopped:11}{hhmm:7}({hf:1.2f} hours){sdt}      {c}".format(sd=str_day, started=time_started, stopped=time_stopped, hhmm=hhmm, hf=hf, sdt = str_day_total, c = comment))
+
 
         if detailed_view:
             print("              Total time tracked: {hf:9.2f} hours".format(project=_project_name(data, project_id=project_id), hf=total))
