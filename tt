@@ -845,7 +845,7 @@ def usage():
 
         # print all commands (and not DESC)
         for command, description in sorted(commands.items()):
-            if command is not "DESC":
+            if command != "DESC":
                 print(bcolors.YELLOW, "    {cmd:20s}".format(cmd=command), bcolors.END, description)
 
 
