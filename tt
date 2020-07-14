@@ -778,6 +778,9 @@ def get_command_groups():
                 "start 23": "Start time tracking for project id 23",
                 "stop": "Stop active time tracking",
                 "pause": "Pause an active tracker",
+                "pause add 30-50 23 2019-03-14 09:46:26":  """Add a pause of a
+                random duration between 30 and 50 minutes to the project 23's
+                time period started on 2019-03-14 09:46:26""",
                 "pause disable": "Disable tracking of pause times",
                 "pause enable": "Enable tracking of pause times",
                 "resume": "Resume tracker from paused project or from last project used",
@@ -1258,6 +1261,185 @@ def reset_tracking():
     save(data, msg)
 
 
+def pause_add(arguments):
+    """
+    """
+    #print("Add pause arguments: {}".format(arguments))
+
+    if len(arguments) < 3:
+        print("""You must specify exactly 3 arguments:
+                30[-50]                 pause period in minutes
+                                        (if only one number is specified a
+                                        pause with this exact duration is
+                                        added - if a second number is given
+                                        (after a minus "-") a pause period of a
+                                        random duration between the 2 numbers
+                                        will be added)
+                23                      project's number or name
+                2019-03-14T09:46:26     add pause to period that starts at
+                                        this point in time
+            """)
+        sys.exit(1)
+
+    # Get the duration
+    a_duration = arguments[0].split("-")
+
+    if len(a_duration) == 1:
+        if str(a_duration[0]).isdigit:
+            pause_minutes = int(a_duration[0])
+            import random
+            random.seed()
+            pause_seconds = random.randint(0,59)
+        else:
+            print("Duration must be of type integer, is {}".format(type(a_duration[0])))
+            sys.exit(2)
+
+    elif len(a_duration) == 2:
+        min_pause = a_duration[0]
+        max_pause = a_duration[1]
+
+        if not str(min_pause).isdigit():
+            print("Minimal pause time must be of type integer")
+            sys.exit(2)
+        if not str(max_pause).isdigit():
+            print("Maximum pause time must be of type integer")
+            sys.exit(2)
+
+        import random
+        random.seed()
+        pause_minutes = random.randint(int(min_pause), int(max_pause))
+        pause_seconds = random.randint(0, 59)
+
+    else:
+        print("""Pause duration must be either of type integer or a range
+        defined by 2 integers a and b in the form of a-b""")
+        sys.exit(2)
+
+    # Load data
+    data = load()
+
+    # Get the project
+    project_id = _get_project_id(data, arguments[1])
+    project_name = _get_project_name(data, project_id)
+    if not str(project_id).isdigit():
+        # Note that there is a project ID "p" specifying the pause project!
+        print("{} is a special project - you cannot add a pause".format(arguments[1]))
+        sys.exit(2)
+
+    # Get the start time stamp of the logged period
+    period_start = "T".join(arguments[2:])
+
+
+    #print("pause duration:  {}:{} minutes".format(pause_minutes, pause_seconds))
+    #print("project:         {}".format(_project_name(data, project_id)))
+    #print("logged period:   {}".format(period_start))
+
+
+    # Get the tracked periods of the particular project and find a period that
+    # starts with period_start
+    tracked_periods = data["projects"][project_id]["history"]
+    try:
+        pos_history = [s[0] for s in tracked_periods].index(period_start)
+    except Exception as e:
+        print("Could not find a period starting at {} for project {}".format(
+            period_start,
+            _project_name(data, project_id)
+            ))
+        return
+
+    #print("Found searched period at position {}:".format(pos_history))
+
+    # We have found the period we are looking for
+    # We need to split this period into 2 periods and create a new pause
+    # period!
+    period = tracked_periods[pos_history]
+    #print("Original period: {}".format(period))
+
+    original_start = datetime.datetime.strptime(period[0], dateformat)
+    original_end = datetime.datetime.strptime(period[1], dateformat)
+    original_duration = original_end - original_start
+
+    # We divide the period exactly in the middle
+    pause_time = original_duration / 2
+
+
+    # Create the missing time stamps
+    first_start = original_start
+    first_end = original_start + pause_time
+    second_start = first_end + datetime.timedelta(minutes = pause_minutes, seconds = pause_seconds)
+    second_end = second_start + pause_time
+
+    first_period = [
+            datetime.datetime.strftime(first_start, dateformat),
+            datetime.datetime.strftime(first_end, dateformat),
+            None
+            ]
+    second_period = [
+            datetime.datetime.strftime(second_start, dateformat),
+            datetime.datetime.strftime(second_end, dateformat),
+            None
+            ]
+    pause_period = [
+            datetime.datetime.strftime(first_end, dateformat),
+            datetime.datetime.strftime(second_start, dateformat),
+            None
+            ]
+
+    #print("First period:    {}".format(first_period))
+    #print("Pause period:    {}".format(pause_period))
+    #print("Second period:   {}".format(second_period))
+
+    # Before we start to modify the project's history
+    # we need to find the right spot in the pause project
+    if data["config"]["log_pause_times"]:
+        if "p" not in data["projects"]:
+            print("No pause project")
+            sys.exit(1)
+
+        pause_history = data["projects"]["p"].get("history", [])
+
+        #print("{} pause entries".format(len(pause_history)))
+        pos_pause = 0
+        for p in pause_history:
+            if datetime.datetime.strptime(p[0], dateformat) <= first_end:
+                pos_pause += 1
+            else:
+                break
+
+        #print("Insert new pause period at position {}".format(pos_pause))
+
+
+    # Now we modify the histories
+
+    # Modify the project's history
+    # Delete the original period ...
+    del(tracked_periods[pos_history])
+    # ... and insert the 2 new periods
+    tracked_periods.insert(pos_history, first_period)
+    tracked_periods.insert(pos_history + 1, second_period)
+
+    # Add the new pause period to the pause history
+    if data["config"]["log_pause_times"]:
+        pause_history.insert(pos_pause, pause_period)
+
+
+    # Save the data to the data structure
+    data["projects"][project_id]["history"] = tracked_periods
+    if data["config"]["log_pause_times"]:
+        data["projects"]["p"]["history"] = pause_history
+
+    # Finally, save the data structure back to disk
+    # Provide a message for the user to let him know what's going on
+    msg = "Added pause of {m}:{s} minutes in project {p} at {ps}".format(
+            m = pause_minutes,
+            s = pause_seconds,
+            p = _project_name(data, project_id),
+            ps = pause_period[0],
+            )
+
+    print(msg)
+    save(data, msg=msg)
+
 def pause_tracking():
     """Pauses a tracker.
 
@@ -1268,11 +1450,15 @@ def pause_tracking():
 
     The opposite of this function is resume_tracking().
     """
-    if len(sys.argv) == 3:
+    if len(sys.argv) >= 3:
         if sys.argv[2].lower() == "enable":
             enable_pause()
         elif sys.argv[2].lower() == "disable":
             disable_pause()
+        elif sys.argv[2].lower() == "add":
+            pause_add(sys.argv[3:])
+        else:
+            print("Unsupported argument(s): {}".format(" ".join(sys.argv[2:])))
         sys.exit(0)
 
     data = load()
