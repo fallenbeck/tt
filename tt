@@ -1339,6 +1339,25 @@ def pause_add(arguments):
     # starts with period_start
     tracked_periods = data["projects"][project_id]["history"]
     try:
+        # First try to get a list of all timestamps that would match
+        # the given period timestamp
+        recorded_timestamps = [s[0] for s in tracked_periods if s[0].startswith(period_start)]
+        #print("Found {} possible timestamps: {}".format(
+        #    len(recorded_timestamps),
+        #    recorded_timestamps,
+        #    ))
+
+        if len(recorded_timestamps) == 0:
+            print("Could not find time period")
+            sys.exit(0)
+        elif len(recorded_timestamps) > 1:
+            print("Ambiguous time period, found {} possible time stamps:\n{}".format(
+                len(recorded_timestamps),
+                "\n".join(recorded_timestamps),
+                ))
+            sys.exit(0)
+        else:
+            period_start = recorded_timestamps[0]
         pos_history = [s[0] for s in tracked_periods].index(period_start)
     except Exception as e:
         print("Could not find a period starting at {} for project {}".format(
@@ -1347,7 +1366,10 @@ def pause_add(arguments):
             ))
         return
 
-    #print("Found searched period at position {}:".format(pos_history))
+    #print("Found searched period {} at position {}".format(
+    #    period_start,
+    #    pos_history,
+    #    ))
 
     # We have found the period we are looking for
     # We need to split this period into 2 periods and create a new pause
