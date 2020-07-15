@@ -1770,12 +1770,14 @@ def show(limit = 10):
             old_day = day
 
         if running_tracker and running_project == project_id:
+            started = data["tracking"]["started"]
+            day, time_started = _to_day_and_time(started)
             time_stopped = ""
             _, hf, hhmm = _time_diff(running_since, _timestamp())
             total = total + hf
             str_day = "{day:16}".format(day=running_since_day)
             #
-            str_day_total = ""
+            str_day_total = "{space}tracking".format(space = " "*6)
 
             if running_since_day == old_day:
                 str_day = " "*16
