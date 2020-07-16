@@ -778,9 +778,7 @@ def get_command_groups():
                 "start 23": "Start time tracking for project id 23",
                 "stop": "Stop active time tracking",
                 "pause": "Pause an active tracker",
-                "pause add 30-50 23 2019-03-14 09:46:26":  """Add a pause of a
-                random duration between 30 and 50 minutes to the project 23's
-                time period started on 2019-03-14 09:46:26""",
+                "pause add 30-50 23 2019-03-14T09:46:26":  "Add a pause of a random duration between 30 and 50 minutes to the project 23's time period started on 2019-03-14 09:46:26",
                 "pause disable": "Disable tracking of pause times",
                 "pause enable": "Enable tracking of pause times",
                 "resume": "Resume tracker from paused project or from last project used",
