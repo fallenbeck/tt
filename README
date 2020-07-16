@@ -4,7 +4,7 @@ tt is a time tracker for the command line.
 Introduction
 ============
 I looked around for a time tracking tool that can be used from the command line
-independent from the computer I use. I did not find any solution I wanted to 
+independent from the computer I use. I did not find any solution I wanted to
 use over a longer period.
 That said, tt is tailored for my (very basic) needs: To keep an eye on my
 working hours when I am in home office and to track time whenever I work on one
@@ -26,7 +26,7 @@ easy as long as you have Python 3 (not 2!) installed on your machine:
 
 Usage
 =====
- Generic commands 
+ Generic commands
      Commands to initialize tt and perform management tasks.
 
      alias a command       Create or updates alias a for a particular command
@@ -40,7 +40,7 @@ Usage
      unalias a             Remove alias a
 
 
- Projects 
+ Projects
      Before you can start a tracker you need to create a project to which this tracker is assigned. These commands allow you to add, delete and manage existing projects.
 
      add project name      Add new project with name "project name"
@@ -49,13 +49,15 @@ Usage
      rename 23 new name    Rename project with ID 23 to "new name"
 
 
- Tracking 
+ Tracking
      These commands allow to start and stop trackers as well as displaying tracked times in existing projects.
 
      cancel                Cancel active tracker and dismiss time
      change 23             Chance project assigned to an active tracker
      comment comment       Add "comment" to the current active tracker
+     csv 23                Show tracked times in the FAZ format
      pause                 Pause an active tracker
+     pause add 30-50 23 2019-03-14T09:46:26  Add a pause of a random duration between 30 and 50 minutes to the project 23's time period started on 2019-03-14 09:46:26
      pause disable         Disable tracking of pause times
      pause enable          Enable tracking of pause times
      reset                 Reset time of active tracker
@@ -67,7 +69,7 @@ Usage
      switch 23             Switch a tracker to a new project by stopping it and starting a new
 
 
- Aliases 
+ Aliases
      Aliases defined in the data file
 
      a                     add
@@ -154,7 +156,7 @@ where I want to use tt:
 	2. mv .tt.json ~/Dropbox/tt.json
 	3. ln -s ~/Dropbox/tt.json ~/.tt.json
 Whenever you modify your local data it is synced to the other machines.
-Yes, you can use other synchronization tools as well. 
+Yes, you can use other synchronization tools as well.
 
 I want to use my phone as time tracking device. Is there an app?
 ----------------------------------------------------------------
