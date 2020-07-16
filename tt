@@ -617,7 +617,7 @@ def init():
                         }
                     },
                 "log": [],
-                },
+                }
 
         # ... and write it to data file
         save(data, "Initialized new data file")
@@ -1886,15 +1886,16 @@ def csv():
 Parses the arguments and calls the appropriate functions.
 """
 
-if len(sys.argv) <= 1:
+if len(sys.argv) == 2 and sys.argv[1].lower() == "init":
+    init()
+    sys.exit(0)
+elif len(sys.argv) <= 1:
     status()
     sys.exit(0)
 
 cmd = parse_command(sys.argv[1].lower())
 
-if cmd == "init":
-    init()
-elif cmd == "status":
+if cmd == "status":
     status()
 elif cmd == "log":
     print_log()
@@ -1939,7 +1940,6 @@ elif cmd == "reset":
     reset_tracking()
 elif cmd == "comment":
     add_comment()
-
 
 else:
     usage()
