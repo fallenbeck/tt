@@ -55,7 +55,7 @@ Usage
      cancel                Cancel active tracker and dismiss time
      change 23             Chance project assigned to an active tracker
      comment comment       Add "comment" to the current active tracker
-     csv 23                Show tracked times in the FAZ format
+     csv 23                Show tracked times as CSV
      pause                 Pause an active tracker
      pause add 30-50 23 2019-03-14T09:46:26  Add a pause of a random duration between 30 and 50 minutes to the project 23's time period started on 2019-03-14 09:46:26
      pause disable         Disable tracking of pause times
@@ -67,6 +67,7 @@ Usage
      start 23              Start time tracking for project id 23
      stop                  Stop active time tracking
      switch 23             Switch a tracker to a new project by stopping it and starting a new
+     tab 23                Show tracked times in a pretty table format
 
 
  Aliases
@@ -184,6 +185,13 @@ are not consecutive anymore. When calling the cleanup function new IDs
 are assigned to the projects eliminating these holes and re-establish a
 consecutive list of IDs.
 
+tt tab does not work for me
+---------------------------
+When printing the table I rely on Python's PrettyTable module. You can
+install PrettyTable using pip3:
+    pip3 install prettytable
+
+
 
 Exit Codes
 ==========
@@ -196,6 +204,7 @@ Code  Meaning
    3  Data file not found
    4  Other exception while trying to read data file
    5  Could not read data from data file
+   6  Could not import required python module
    7  Exception while saving/writing data to data file
   10  Project's name or ID not specified when trying to add a new project
   11  Project's name or ID not specified when trying to delete/rename p.

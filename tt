@@ -784,7 +784,8 @@ def get_command_groups():
                 "resume": "Resume tracker from paused project or from last project used",
                 "show": "Show tracked times for all projects",
                 "show 23": "Show tracked times and some additional information for project 23",
-                "csv 23": "Show tracked times in the FAZ format",
+                "csv 23": "Show tracked times as CSV",
+                "tab 23": "Show tracked times in a pretty table format",
                 "switch 23": "Switch a tracker to a new project by stopping it and starting a new",
                 "change 23": "Chance project assigned to an active tracker",
                 "cancel": "Cancel active tracker and dismiss time",
@@ -1796,9 +1797,12 @@ def show(limit = 10):
             print("              Total time tracked: {hf:9.2f} hours".format(project=_project_name(data, project_id=project_id), hf=total))
 
 
-def csv():
+def csv(table = False):
     """Outputs the tracked time(s) of a particular project in a format that can be
     easily pasted to our "Zeiterfassungsbogen".
+
+    :param table:   Print a pretty table instead of boring comma-separated values
+    :type table:    bool
     """
     data = load()
     project_ids = list() # list of project ids to display
@@ -1860,6 +1864,21 @@ def csv():
     # Now we need to print it
     delimiter = ";"
 
+    if table:
+        # Use PrettyTable to create a pretty table
+        try:
+            from prettytable import PrettyTable
+            t = PrettyTable()
+
+            t.field_names = ["Day", "Times", "Hours"]
+            t.align["Day"] = "l"
+            t.align["Times"] = "l"
+            t.align["Hours"] = "r"
+
+        except Exception as e:
+            print("Could not import module prettytable")
+            sys.exit(6)
+
     for day in sorted(dict_to_print.keys()):
         day_data = dict_to_print[day]
         entries = ", ".join(day_data["entries"])
@@ -1868,13 +1887,18 @@ def csv():
                 )
         day_total = str(f_day_total).replace(".", ",")
 
-        print("\"{day}\"{d}\"{e}\"{d}\"{t}\"".format(
-            d = delimiter,
-            e = entries,
-            t = day_total,
-            day = day,
-            ))
+        if table:
+            t.add_row([day, entries, day_total])
+        else:
+            print("\"{day}\"{d}\"{e}\"{d}\"{t}\"".format(
+                d = delimiter,
+                e = entries,
+                t = day_total,
+                day = day,
+                ))
 
+    if table:
+        print(t)
 
 
 #############################################################################
@@ -1921,6 +1945,8 @@ elif cmd == "show":
     show()
 elif cmd == "csv":
     csv()
+elif cmd == "tab":
+    csv(table = True)
 
 elif cmd == "pause":
     pause_tracking()
