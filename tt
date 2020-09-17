@@ -16,6 +16,7 @@ dateformat = "%Y-%m-%dT%H:%M:%S"
 #    3  Data file not found
 #    4  Other exception while trying to read data file
 #    5  Could not read data from data file
+#    6  Could not import required python module
 #    7  Exception while saving/writing data to data file
 #   10  Project's name or ID not specified when trying to add a new project
 #   11  Project's name or ID not specified when trying to delete/rename p.
