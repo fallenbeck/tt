@@ -3,9 +3,7 @@
 # It is really simple and I got the idea when using todolist on the command
 # line. tymetracker (tt) is written entirely in Python 3 and stores the
 # records in a json data structure in the user's home directory.
-datafile = "~/.tt.json"
-dateformat = "%Y-%m-%dT%H:%M:%S"
-
+#
 # Exit codes
 # There are a couple of exit codes that can occur when running tt.
 # Code  Meaning
@@ -31,11 +29,7 @@ dateformat = "%Y-%m-%dT%H:%M:%S"
 #   31  Invalid command when trying to add alias
 #   32  Alias not found
 #   42  Disabled in local configuration
-
-
-#############################################################################
-### Here be dragons!
-#############################################################################
+#   50  No comment given
 
 # Import stuff we need
 import copy
@@ -44,33 +38,1896 @@ import json
 import os
 import sys
 
-
-# This variable defines the format version of the datafile
-DATAFILE_VERSION = 5
-
-
-# Set variables we need
-f = os.path.abspath(os.path.expanduser(datafile))
-my_name = os.path.basename(sys.argv[0])
-
-
-# Cache for data
-DATA = None
-
-
-# Sanity check: only proceed if we are in a python3 environment
-try:
-    assert sys.version_info >= (3,0)
-except:
-    print("Python 3 is required to run {}".format(my_name))
-    sys.exit(1)
-
-
-
-
 #############################################################################
-### Helper functions
+### Here be dragons!
 #############################################################################
+class TymeTracker:
+    datafile = "~/.tt.json"
+    dateformat = "%Y-%m-%dT%H:%M:%S"
+
+
+    # This variable defines the format version of the datafile
+    DATAFILE_VERSION = 5
+
+    # Set variables we need
+    f = os.path.abspath(os.path.expanduser(datafile))
+    my_name = os.path.basename(sys.argv[0])
+
+    # Cache for data
+    DATA = None
+
+
+
+    #############################################################################
+    ### Helper functions
+    #############################################################################
+
+    def _get_project_id(self,
+            data: dict,
+            project_id_or_name: str,
+            ) -> str:
+        """Look up and return a project's ID if it exists.
+
+        If the project ID is given, this ID will be returned if the project
+        exists in the data. If a project's name is given, this function
+        looks up the name in data and return the ID of the project.
+        If the project could not be found, this function returns None.
+
+        :param data:                Data object representing the current state
+        :type data:                 dict
+        :param project_id_or_name:  Argument given by caller representing either a project ID or name
+        :type project_id_or_name:   str
+        :return:                    ID of the project in the data object
+        :rtype:                     str
+        """
+        pin = None
+        if isinstance(project_id_or_name, str):
+            pin = project_id_or_name
+        elif isinstance(project_id_or_name, list):
+            pin = " ".join(project_id_or_name)
+        else:
+            print(f"Could not look up project ID for {project_id_or_name} ({type(project_id_or_name)})")
+            return None
+
+
+        # If we have a positive number project_id_or_name could be the
+        # ID itself. Let's check
+        if pin.isdigit() or pin in ['p']:
+            if pin in data["projects"].keys():
+                # return project_id_or_name
+                return pin
+
+        # project_id_or_name is not the project ID. Let's search all projects'
+        # names
+        for project_id, project in data["projects"].items():
+            if pin == project["name"]:
+                return project_id
+
+        # Ok, did not find anything yet. Maybe the case of the letters is
+        # different... since we found nothing yet, let's try that.
+        # Note, that case-removing conversions in unicode aren't trivial. There
+        # is text for which text.lower() != text.upper().lower(), such as "ß":
+        #  "ß".lower()
+        #  #>>> 'ß'
+        #  "ß".upper().lower()
+        #  #>>> 'ss'
+        for project_id, project in data["projects"].items():
+            if pin.lower() == project["name"].lower():
+                return project_id
+
+        # We could not find the string neither in the IDs nor in the names.
+        # Giving up.
+        print(f"Project {bcolors.YELLOW}{project_id_or_name}{bcolors.END} not found")
+        sys.exit(12)
+
+        return None
+
+
+    def _get_list_of_project_ids(self,
+            only_numeric: bool = False,
+            ):
+        """Get a list of all existing project IDs.
+
+        :param only_numeric:    Return only numeric IDs (== normal projects)
+        :type only_numeric:     bool
+        :return:                All assigned project IDs
+        :rtype:                 list of str (!)
+        """
+        data = self.load()
+        all_project_ids = list(data["projects"].keys())
+        result = []
+
+        if not only_numeric:
+            result = all_project_ids
+        else:
+            for i in all_project_ids:
+                try:
+                    int(i)
+                    result.append(i)
+                except:
+                    continue
+
+        return result
+
+
+    def _get_project_name(self,
+            data: dict,
+            project_id: str,
+            ) -> str:
+        """Return the name of a project.
+
+        Get a project's name. Consider using _project_name() function below if
+        you need to display the project's name in-line.
+
+        :param data:        Data object representing the current state
+        :type data:         dict
+        :param project_id:  ID of project
+        :type project_id:   str
+        :return:            Name of the project
+        :rtype:             str
+        """
+        try:
+            return data["projects"][project_id]["name"]
+        except:
+            return None
+
+
+    def _project_name(self,
+            data: dict,
+            project_id: str,
+            ) -> str:
+        """Return a colored string representing a project.
+
+        Returns a string that can be used every time when a project's name needs
+        do be displayed. Using this function makes sure that the name is always
+        printed in the same way making it easier to use tt.
+
+        :param data:        Data object representing the current state
+        :type data:         dict
+        :param project_id:  ID of project
+        :type project_id:   str
+        :return:            Colored string to print on the command line
+        :rtype:             str or None
+        """
+        pname = self._get_project_name(data, project_id)
+
+        is_numeric = project_id in self._get_list_of_project_ids(only_numeric = True)
+
+        if pname is not None:
+            if is_numeric:
+                r = f"{bcolors.YELLOW}{project_id}{bcolors.END}: \"{pname}\""
+            else:
+                r = f"{bcolors.BLUE}{project_id}{bcolors.END}: \"{pname}\""
+        else:
+            r = None
+
+        return r
+
+
+    def _timestamp(self) -> str:
+        """Return a timestamp.
+
+        This timestamp is crucial since it is used in the JSON file to store
+        the beginning and end of the the time periods.
+        We use the ISO format to ensure that humans can read (and modify) the
+        values manually if needed.
+
+        :return:    Return a timestamp used to calculate tracking times
+        :rtype:     str
+        """
+        return datetime.datetime.now().strftime(self.dateformat)
+
+
+    def _time_diff(self,
+            started: str,
+            stopped: str,
+            ) -> tuple:
+        """
+        Calculate the difference between to datetimes.
+        Returns a 3-tuple containing
+            seconds as float (e.g., 23132.0 seconds)
+            hour_frac as float (e.g., 0.3455353 hours)
+            hhmm as string (e.g., 01:23)
+        """
+        a = datetime.datetime.strptime(started, self.dateformat)
+        b = datetime.datetime.strptime(stopped, self.dateformat)
+        c = b - a
+        seconds = c.total_seconds()
+        hour_frac = seconds / 3600
+        hhmm = "{h:02}:{m:02}".format(h=c.seconds//3600, m=(c.seconds//60)%60)
+
+        # return tuple
+        return (seconds, hour_frac, hhmm)
+
+
+    def _to_day_and_time(self,
+            isodateformat: str,
+            ) -> tuple:
+        """
+        Return the day and the time from an ISO-formatted date.
+        Given a timestamp, the day and the time will be returned as a 2-tuple with
+        the day in format YYYY-mm-dd as first element and the time in format HH:MM
+        as the second element of the tuple.
+        """
+        day = datetime.datetime.strptime(isodateformat, self.dateformat).strftime('%Y-%m-%d')
+        time = datetime.datetime.strptime(isodateformat, self.dateformat).strftime('%H:%M')
+        return (day, time)
+
+
+
+    #############################################################################
+    ### Configuration functions
+    #############################################################################
+
+
+    def enable_log(self) -> None:
+        """Enable log functionality.
+
+        This function reconfigures and saves the particular setting in the
+        data files's config section.
+        """
+        data = self.load()
+        if not data["config"]["log_actions"]:
+            msg = "Enabled log"
+            data["config"]["log_actions"] = True
+            print(msg)
+            self.save(data, msg)
+        else:
+            print("Log already enabled")
+
+
+    def disable_log(self) -> None:
+        """Disable log functionality.
+
+        This function reconfigures and saves the particular setting in the
+        data files's config section.
+        """
+        data = self.load()
+        if data["config"]["log_actions"]:
+            msg = "Disabled log"
+            data["config"]["log_actions"] = False
+            print(msg)
+            self.save(data, msg)
+        else:
+            print("Log already disabled")
+
+
+    def enable_pause(self) -> None:
+        """Enable tracking pause times.
+
+        This function reconfigures and saves the particular setting in the
+        data files's config section.
+        """
+        data = self.load()
+        if not data["config"]["log_pause_times"]:
+            msg = "Enabled tracking of pause times"
+            data["config"]["log_pause_times"] = True
+            print(msg)
+            self.save(data, msg)
+        else:
+            print("Tracking of pause times already enabled")
+
+
+    def disable_pause(self) -> None:
+        """Disable tracking pause times.
+
+        This function reconfigures and saves the particular setting in the
+        data files's config section.
+        """
+        data = self.load()
+        if data["config"]["log_pause_times"]:
+            msg = "Disabled tracking of pause times"
+            data["config"]["log_pause_times"] = False
+            print(msg)
+            self.save(data, msg)
+        else:
+            print("Tracking of pause times already disabled")
+
+
+
+    #############################################################################
+    ### Data file functions
+    #############################################################################
+
+    def load(self) -> dict:
+        """Load data file contents.
+
+        Load the JSON datafile and return a dict with all the values.
+
+        :return:    Data object representing the current state
+        :rtype:     dict
+        """
+        f = self.f
+
+        if self.DATA:
+            return self.DATA
+
+        try:
+            fp = open(f, "r")
+            data = json.load(fp)
+            fp.close()
+        except FileNotFoundError as e:
+            print(f"Could not load data file. Please run {bcolors.YELLOW}init{bcolors.END} first.")
+            sys.exit(3)
+        except Exception as e:
+            print(e)
+            sys.exit(4)
+
+        if data is None:
+            print(f"Read corrupt data from {f}")
+            sys.exit(5)
+
+        # Apply upgrade to the data read from the disk (if needed)
+        data = self._file_version_upgrade(data)
+        self.DATA = data
+
+        return data
+
+
+    def save(self,
+            data: dict,
+            msg: str = None,
+            ) -> None:
+        """Write the data dict object to disk in JSON format.
+
+        If a msg is set, this text will be appended to the log in the datafile
+        if logging in the config section is set to True (which is the default).
+
+        :param data:    Data object representing the current state
+        :type data:     dict
+        :param msg:     ID of project
+        :type msg:      str
+        """
+        f = self.f
+
+        if data is not None:
+            if msg is not None and data.get("config", {}).get("log_actions", False):
+                data.get("log", []).append(f"{self._timestamp().replace('T', ' ')}  {msg}")
+
+            global DATA
+            DATA = data
+
+            try:
+                fp = open(f, "w")
+                json.dump(data, fp, indent=2)
+                fp.flush()
+                fp.close()
+            except Exception as e:
+                print(e)
+                sys.exit(7)
+        else:
+            print("No data to write")
+
+
+    def _file_version_upgrade(self,
+            data: dict = None,
+            ) -> dict:
+        """This function migrates a data file from on old version to a new version.
+
+        If the data object is given as an argument, this function will operate on
+        the provided data object otherwise the data will be loaded from disk.
+        The version of the data file and the version needed by tt will be
+        compared. If needed, modifications are applied to the data object.
+        After applying all modifications the data object is stored to disk and
+        is returned by this function.
+
+        :param data:    (Optional) Data object representing the current state
+        :type data:     dict
+        :return:        Return updated data object
+        :rtype:         dict
+        """
+        # Load the data from the datafile on disk (if needed)
+        if data is None:
+            data = load()
+
+        # Determine the version of the data file as well as the version
+        # we need to migrate to
+        from_version = int(data["meta"]["file_version"])
+        to_version = int(self.DATAFILE_VERSION)
+
+        # Check if changes need to be made, otherwise return data object
+        if from_version >= to_version:
+            return data
+
+        current_version = from_version
+        while current_version < to_version:
+            if current_version == 1:
+                data["meta"]["file_version"] = 2
+                data["meta"]["last_project"] = None
+                data["config"] = {"log_pause_times": True, "log_actions": True,}
+                data["projects"]["p"] = {"name": "Pause", "history": []}
+                data["log"] = []
+
+            if current_version == 2:
+                data["meta"]["file_version"] = 3
+                data["tracking"]["comment"] = None  # Comments are stored here (as str)
+
+                for project_id, project_data in data["projects"].items():
+
+                    # We need to build a new history for every project
+                    # The old history contains 2-tuples with the start time
+                    # and the end time of the tracker, the new history
+                    # is a 3-tuple conainting an additional string
+                    # representing a comment regarding this stint.
+                    # This comment is None by default.
+                    old_history = project_data["history"]
+                    new_history = []
+
+                    for (start_tracking, end_tracking) in old_history:
+                        new_tuple = (start_tracking, end_tracking, None)
+                        new_history.append(new_tuple)
+
+                    data["projects"][project_id]["history"] = new_history
+
+            if current_version == 3:
+                data["meta"]["file_version"] = 4
+                data["aliases"] = {
+                        "st": "status",
+                        "a": "add",
+                        "d": "delete",
+                        "l": "list",
+                        "ch": "change",
+                        "c": "comment",
+                        "p": "pause",
+                        "r": "resume",
+                        "s": "show",
+                        "sw": "switch",
+                        }
+
+            if current_version == 4:
+                # This version fixes a problem with the data file.
+                # We had a problem in the resume_tracking() function that
+                # prevented the comment from being written to the pause project's
+                # history. This would case an error when show() is called.
+                data["meta"]["file_version"] = 5
+
+                # We need to rebuild the history again.
+                # This time, only the pause project (ID: p) is affected.
+
+                # Old comments have not been written when the project is paused
+                # therefore this information has been lost earlier. We will set
+                # the comment value to None.
+                old_history = data["projects"]["p"]["history"]
+                new_history = []
+
+                for (start_tracking, end_tracking) in old_history:
+                    new_tuple = (start_tracking, end_tracking, None)
+                    new_history.append(new_tuple)
+
+                data["projects"]["p"]["history"] = new_history
+
+            # increment current_version to carry out next update if needed
+            current_version += 1
+
+        msg = f"Converted data file format from version {from_version} to version {to_version}"
+        self.save(data, msg)
+        print(msg)
+
+        # Return upgraded data object
+        return data
+
+
+
+    #############################################################################
+    ### Generic functions
+    #############################################################################
+
+    def init(self) -> None:
+        """Initialize a new datafile if it does not exist.
+
+        If a data file already exists, the program will return with an error code.
+        If an existing data file should be overwritten, the user needs to
+        manually delete the existing file.
+
+        The new data file will be written to disk and the program will exit.
+        """
+        f = self.f
+
+        if os.path.isfile(f):
+            print(f"Data file {f} already exists")
+            sys.exit(2)
+        else:
+            print(f"Initializing new data file {f}")
+
+            # Initialize new data dict
+            # TODO: Initialize directly with file_version 5
+            data = {
+                    "meta": {
+                        "last_id": 0,
+                        "file_version": 4,
+                        "last_project": None,
+                        },
+                    "config": {
+                        "log_pause_times": True,
+                        "log_actions": True,
+                        },
+                    "tracking": {
+                        "active": False,
+                        "project": None,
+                        "started": None,
+                        "comment": None,
+                        },
+                    "aliases": {
+                        "st": "status",
+                        "a": "add",
+                        "d": "delete",
+                        "l": "list",
+                        "ch": "change",
+                        "c": "comment",
+                        "p": "pause",
+                        "r": "resume",
+                        "s": "show",
+                        "sw": "switch",
+                    },
+                    "projects": {
+                        # id:    {
+                            # "name": Projektname,
+                            # "history": [] # elements are tuples (start, stop)
+                        # }
+                        # },
+
+                        # This is the special project "Pause".
+                        # This project is used for pause/resume timekeeping.
+                        "p": {
+                            "name": "Pause",
+                            "history": [],
+                            }
+                        },
+                    "log": [],
+                    }
+
+            # ... and write it to data file
+            self.save(data, "Initialized new data file")
+
+
+    def status(self) -> None:
+        """Print current state.
+
+        If a tracker is active this function displays a brief summary of the
+        recent work period.
+        """
+        data = self.load()
+
+        # number_of_projects = len(data["projects"])
+
+        # # If pause times should not be logged we need to hide the project
+        # # from the user
+        # if not data.get("config", {}).get("log_pause_times", False):
+        #     number_of_projects -= 1
+
+        # print("{} projects".format(number_of_projects))
+
+        if not data["tracking"]["active"]:
+            print("No active time tracking")
+        else:
+            since = data["tracking"]["started"]
+            project_id = data["tracking"]["project"]
+            comment = data["tracking"]["comment"]
+            _, hf, hhmm = self._time_diff(since, self._timestamp())
+            msg = f"Tracking time in project {self._project_name(data, project_id)} for {hhmm} ({hf:0.2f} hours)"
+
+            if comment:
+                msg += f": \"{comment}\""
+
+            print(msg)
+
+
+    def print_log(self,
+            limit: int = 20,
+            ) -> None:
+        """Print log.
+
+        If the log is enabled in the local configuration existing log entries
+        are printed to the console.
+        The user can also privde "enable", "disable", or a number as argument
+        together with the log keyword. If enable or disable is given, the
+        appropriate configuration update is carried out. If a number is given
+        this number is treated as the number of log entries to print.
+        """
+        if len(sys.argv) == 3:
+            if sys.argv[2].lower() == "enable":
+                self.enable_log()
+                sys.exit(0)
+            elif sys.argv[2].lower() == "disable":
+                self.disable_log()
+                sys.exit(0)
+            elif sys.argv[2].isdigit():
+                # Display last n entries
+                limit = int(sys.argv[2])
+
+        data = self.load()
+        if not data["config"]["log_actions"]:
+            print("Disabled in local config")
+            sys.exit(42)
+
+        # Get the last limit entries of the list of log entries
+        history = data["log"][-limit:]
+
+        # Print the log
+        for line in history:
+            print(f"{' ' * 2}{line}")
+
+
+    def cleanup(self) -> None:
+        """Clean up the projects.
+
+        This function will reassign new IDs to the project.
+        After the reorganization the file is saved to disk.
+        """
+        data = self.load()
+
+        # iterate the projects and reassign new IDs
+        old_projects = copy.deepcopy(data["projects"])
+        project_id = 0
+        data["projects"] = {}
+        for old_pid, project in old_projects.items():
+            if old_pid == "p":
+                data["projects"]["p"] = project
+            else:
+                project_id = project_id + 1
+                data["projects"][project_id] = project
+
+        # set the correct last ID
+        data["meta"]["last_id"] = project_id
+
+        # write to disk
+        self.save(data, "Cleaned up data file")
+        print(f"Successfully cleaned up {self.datafile}")
+
+
+    def parse_command(self,
+            command_or_alias: str,
+            ) -> str:
+        """Returns the name of a command (for an alias if defined).
+
+        The data file allows aliases to be defined to shorten commands the user
+        needs to type in.
+        This function returns the full command for a given alias if this
+        alias exists in the data file.
+        If the complete function name is given in the alias attribute and
+        such a command exists, this name will also be returned.
+
+        :return:    Command name that should be carried out
+        :rtype:     str or None
+        """
+        data = self.load()
+        commands = self.get_commands()
+
+        if command_or_alias in commands:
+            return command_or_alias
+        else:
+            resolved_alias = data.get("aliases", {}).get(command_or_alias, None)
+            if resolved_alias and resolved_alias in commands:
+                return resolved_alias
+
+        return None
+
+
+
+    def get_command_groups(self) -> dict:
+        """Defines the commands and the groups where they belong.
+
+        The dict that will be returned contains other dictionaries, each
+        representing a group of commands. These dictionaries can contain
+        a reserved key DESC that provides a human-readable short description
+        of this command group.
+
+        :return:    Group of commands used to display the help message
+        :rtype:     dict of dicts
+        """
+        group = {
+                "Generic commands": {
+                    "DESC": f"Commands to initialize {self.my_name} and perform management tasks.",
+                    "init": "Initialize new data file",
+                    "status": "Display tracker status information",
+                    "cleanup": "Cleanup and reorganize data file",
+                    "log": "Show activity log",
+                    "log enable": "Enable activity log",
+                    "log disable": "Disable activity log",
+                    "aliases": "Shows list of all defined aliases",
+                    "alias a command": "Create or updates alias a for a particular command",
+                    "unalias a": "Remove alias a",
+                    },
+                "Projects": {
+                    "DESC": "Before you can start a tracker you need to create a project to which this tracker is assigned. These commands allow you to add, delete and manage existing projects.",
+                    "add project name": "Add new project with name \"project name\"",
+                    "delete 23": "Delete project with id 23",
+                    "list": "List projects and their ids",
+                    "rename 23 new name": "Rename project with ID 23 to \"new name\"",
+                    },
+                "Tracking": {
+                    "DESC": "These commands allow to start and stop trackers as well as displaying tracked times in existing projects.",
+                    "start 23": "Start time tracking for project id 23",
+                    "stop": "Stop active time tracking",
+                    "pause": "Pause an active tracker",
+                    "pause add 30-50 23 2019-03-14T09:46:26":  "Add a pause of a random duration between 30 and 50 minutes to the project 23's time period started on 2019-03-14 09:46:26",
+                    "pause disable": "Disable tracking of pause times",
+                    "pause enable": "Enable tracking of pause times",
+                    "resume": "Resume tracker from paused project or from last project used",
+                    "show": "Show tracked times for all projects",
+                    "show 23": "Show tracked times and some additional information for project 23",
+                    "csv 23": "Show tracked times as CSV",
+                    "tab 23": "Show tracked times in a pretty table format",
+                    "switch 23": "Switch a tracker to a new project by stopping it and starting a new",
+                    "change 23": "Chance project assigned to an active tracker",
+                    "cancel": "Cancel active tracker and dismiss time",
+                    "reset": "Reset time of active tracker",
+                    "comment comment": "Add \"comment\" to the current active tracker",
+                    }
+                }
+
+        dict_of_aliases = self.get_aliases()
+        if len(dict_of_aliases):
+            dict_of_aliases["DESC"] = "Aliases defined in the data file"
+            group["Aliases"] = dict_of_aliases
+
+        return group
+
+
+    def get_commands(self) -> set:
+        """Returns a set of all commands available by this version of tt.
+
+        This set does not contain aliases defined in the data file but only
+        full commands. It will be used for input parsing.
+
+        :return:    All commands available to the user
+        :rtype:     Set of strings
+        """
+        groups = self.get_command_groups()
+        result = set()
+
+        for group_name, group in groups.items():
+            if group_name != "Aliases":
+                for command in group.keys():
+                    if command != "DESC":
+                        result.add(command.split(" ")[0])
+
+        return result
+
+
+
+
+    def usage(self) -> None:
+        """Print the list of commands that are supported.
+
+        This function is called everytime  the user calls tt with no or too
+        few arguments.
+        """
+        group = self.get_command_groups()
+
+        # Display the commands/dicts
+        first = True
+        for group, commands in group.items():
+            if first:
+                first = False
+            else:
+                print("\n")
+            print(f"{bcolors.PURPLE}{group}{bcolors.END}")
+
+            # print the DESC if needed
+            if "DESC" in commands:
+                print(f"     {commands['DESC']}\n")
+
+            # print all commands (and not DESC)
+            for command, description in sorted(commands.items()):
+                if command != "DESC":
+                    print(f"{bcolors.YELLOW}{command:20s}{bcolors.END} {description}")
+
+
+
+    def get_aliases(self) -> dict:
+        """Return a dict containing all aliases defined.
+
+        Key is the alias, value is the command to call.
+
+        :return:    All defined aliases
+        :rtype:     dict
+        """
+        data = self.load()
+        aliases = data.get("aliases", {})
+
+        dict_of_aliases = {}
+        if len(aliases) > 0:
+
+            for alias, command in aliases.items():
+                dict_of_aliases[alias] = command
+
+        return dict_of_aliases
+
+
+
+    def print_aliases(self) -> None:
+        """Print list of defined aliases.
+        """
+        aliases = self.get_aliases()
+        for alias, command in sorted(aliases.items()):
+            print(f"{alias:>4}    {command}")
+
+
+    def alias(self) -> None:
+        """Add or update an alias for a particular command.
+
+        The alias will only be added to the data file if a valid command is
+        specified.
+        """
+        if len(sys.argv) < 4:
+            print("You must specify alias and command")
+            sys.exit(30)
+
+        data = self.load()
+        alias = sys.argv[2]
+        command = sys.argv[3]
+
+        if command in self.get_commands():
+            data["aliases"][alias] = command
+            msg = f"Created alias {alias} for command {command}"
+            self.save(data, msg)
+            print(msg)
+        else:
+            print(f"Could not create alias {alias} for {command}: Invalid command")
+            sys.exit(31)
+
+
+    def unalias(self) -> None:
+        """Removes alias from the data file.
+        """
+        if len(sys.argv) < 3:
+            print("You must specify alias to remove")
+            sys.exit(30)
+
+        data = self.load()
+        alias = sys.argv[2]
+
+        if alias in data["aliases"].keys():
+            msg = f"Removed alias {alias} for {data['aliases'][alias]}"
+            del data["aliases"][alias]
+            self.save(data, msg)
+            print(msg)
+        else:
+            print("Alias {alias} not defined")
+            sys.exit(32)
+
+
+    #############################################################################
+    ### Projects
+    #############################################################################
+
+    def list_projects(self) -> None:
+        """Print all existing projects.
+
+        The special project p is only displayed if tracking pause times is enabled
+        in the local configuration.
+        """
+        data = self.load()
+        p = data.get("projects", {})
+        show_pause_project = data.get("config", {}).get("log_pause_times", False)
+
+        if len(p) == 0:
+            print("No projects found.")
+        else:
+            for project_id, project_data in sorted(p.items()):
+                if project_id == "p" and not show_pause_project:
+                    continue
+
+                if project_id.isdigit():
+                    print(f"    {bcolors.YELLOW}{project_id:>3}{bcolors.END}   {project_data['name']}")
+                else:
+                    print(f"    {bcolors.BLUE}{project_id:>3}{bcolors.END}   {project_data['name']}")
+
+
+    def add_project(self) -> None:
+        """Add a project.
+
+        You need to specify a project name. The project name can contain spaces.
+        When created, this function prints the id of the created project.
+        """
+        if len(sys.argv) < 3:
+            print("You must specify a project name")
+            sys.exit(10)
+
+        name = " ".join(sys.argv[2:]).strip()
+
+        data = self.load()
+        project = {}
+        project_id = int(data["meta"].get("last_id", 0)) + 1
+
+        # If there is a bogus last_id in our file, we need to make sure that no
+        # existing data will be overwritten
+
+        existing_project_ids = self._get_list_of_project_ids(only_numeric = True)
+        if project_id in existing_project_ids:
+            # Get the biggest existing project ID and increase it by 1
+            project_id = max(existing_project_ids) + 1
+
+        project["name"] = name
+        project["history"] = []
+
+        projects = data.get("projects", {})
+        projects[project_id] = project
+
+        data["meta"]["last_id"] = project_id
+        data["projects"] = projects
+
+        msg = f"Created project {self._project_name(data, project_id)}"
+        self.save(data, msg)
+        print(msg)
+
+
+    def delete_project(self) -> None:
+        """Delete a project.
+
+        You need to specify a project id.
+        """
+        if len(sys.argv) < 3:
+            print("You must specify a project id")
+            list_projects()
+            sys.exit(11)
+
+        data = self.load()
+        project_id = self._get_project_id(data, sys.argv[2:])
+
+        if project_id not in data.get("projects", {}).keys():
+            print(f"Project {bcolors.YELLOW}{project_id}{bcolors.END} not found")
+            sys.exit(12)
+        elif not project_id.isdigit():
+            print(f"Not allowed to delete special project {self._project_name(data, project_id)}")
+        else:
+            msg = f"Project {self._project_name(data, project_id)} deleted"
+            del data["projects"][project_id]
+            print(msg)
+            self.save(data, msg)
+
+
+    def rename_project(self) -> None:
+        """Rename a project.
+
+        You need to specify a project id and a new project name.
+        """
+        if len(sys.argv) < 4:
+            print("You must specify a project id and a new project name")
+            self.list_projects()
+            sys.exit(11)
+
+        project_id = sys.argv[2]
+        new_name = " ".join(sys.argv[3:])
+
+        data = self.load()
+        if project_id not in data.get("projects", {}):
+            print(f"Project {bcolors.YELLOW}{project_id}{bcolors.END} not found")
+            sys.exit(12)
+        elif not project_id.isdigit():
+            print(f"Not allowed to rename special project {self._project_name(data, project_id)}")
+        else:
+            data["projects"][project_id]["name"] = new_name
+            msg = f"Assigned new name to project {self._project_name(data, project_id)}"
+            print(msg)
+            self.save(data, msg)
+
+
+    #############################################################################
+    ### Time tracking
+    #############################################################################
+
+    def start_tracking(self,
+            project_id: str = None,
+            ):
+        """Start a tracker for a given project.
+
+        You must specify a project id when starting a tracker. The recorded
+        time will be stored in the particular project's context.
+        If a tracker is alreay active, a warning will be displayed and the
+        tracker will not be started.
+
+        The optional argument project_id allows to start a new tracker
+        programatically and will be used for pause/resume operations.
+
+        :param project_id:  ID of project
+        :type project_id:   str
+        """
+        if project_id is None and len(sys.argv) < 3:
+            print("You must specify a project id")
+            list_projects()
+            sys.exit(20)
+
+        data = self.load()
+        if project_id is None:
+            project_id = self._get_project_id(data, sys.argv[2])
+
+        if not project_id.isdigit():
+            print(f"Not allowed to start tracker for special project {self._project_name(data, project_id)}")
+            sys.exit(23)
+
+        # Check if there is an active tracker
+        if data["tracking"]["active"]:
+            try:
+                since = data["tracking"]["started"]
+                tracking_id = data["tracking"]["project"]
+                _, hf, hhmm = self._time_diff(since, self._timestamp())
+                print(f"Tracker already started for project {self._project_name(data, tracking_id)}")
+                sys.exit(21)
+            except Exception as e:
+                # We have an active tracker but it cannot be read.
+                # This might happen if this tracker refers to a non-existing
+                # project ID. Reset tracking settings and continue.
+                print(f"Stopped faulty tracker marked as active: {e}")
+                data["tracking"]["active"] = False
+                data["tracking"]["project"] = None
+                data["tracking"]["started"] = None
+
+        # Check if project ID exists
+        if project_id not in data.get("projects", {}):
+            print(f"Project {bcolors.YELLOW}{project_id}{bcolors.END} not found")
+            sys.exit(12)
+
+        data["tracking"]["active"] = True
+        data["tracking"]["project"] = project_id
+        data["tracking"]["started"] = self._timestamp()
+
+        msg = f"Tracker started for project {self._project_name(data, project_id)}"
+        print(msg)
+        self.save(data, msg)
+
+    def stop_tracking(self) -> None:
+        """Stop a running tracker.
+
+        No need to specify a project id (will be ignored). If no active tracker
+        is found, an error is printed to the console.
+        """
+        data = self.load()
+        if not data["tracking"]["active"]:
+            print("No active tracker")
+            sys.exit(22)
+
+        try:
+            project_id = data["tracking"]["project"]
+
+            started = data["tracking"]["started"]
+            stopped = self._timestamp()
+            diff, hf, hhmm = self._time_diff(started, stopped)
+
+            comment = data["tracking"]["comment"]
+
+            # add tuple to history
+            history = data["projects"][project_id]["history"]
+            history.append( (started, stopped, comment) )
+            data["projects"][project_id]["history"] = history
+
+            msg = f"Tracker stopped for project {self._project_name(data, project_id)} after {hhmm} ({hf:1.2f} hours)"
+
+            if comment:
+                msg += f": \"{comment}\""
+
+        except Exception as e:
+            # We have to deal with an entry we cannot read (and parse) correctly.
+            # This might happen if the tracker refers to a non-existing project
+            # ID. We should simply deactivate the tracker.
+            msg = f"Tracker stopped but an error occurred: {e}".format(e)
+
+        # Save the project_id as last_project (if it is a normal project)
+        if project_id.isdigit():
+            data["meta"]["last_project"] = project_id
+
+        # reset tracking settings
+        data["tracking"]["active"] = False
+        data["tracking"]["project"] = None
+        data["tracking"]["started"] = None
+        data["tracking"]["comment"] = None
+
+        print(msg)
+        self.save(data, msg)
+
+
+    def cancel_tracking(self) -> None:
+        """Cancel a tracker: Stop it and dismiss the tracked time.
+
+        Stop the tracker, dismiss the time it has tracked and
+        reset values in the tracking section of the data file.
+        """
+        data = self.load()
+        if not data["tracking"]["active"]:
+            print("No active tracker")
+            sys.exit(22)
+
+        try:
+            project_id = data["tracking"]["project"]
+            msg = f"Tracker cancelled for project {self._project_name(data, project_id)}"
+
+        except Exception as e:
+            # We have to deal with an entry we cannot read (and parse) correctly.
+            # This might happen if the tracker refers to a non-existing project
+            # ID. We should simply deactivate the tracker.
+            msg = f"Tracker cancelled but an error occurred: {e}"
+
+        # Save the project_id as last_project (if it is a normal project)
+        if project_id.isdigit():
+            data["meta"]["last_project"] = project_id
+
+        # reset tracking settings
+        data["tracking"]["active"] = False
+        data["tracking"]["project"] = None
+        data["tracking"]["started"] = None
+        data["tracking"]["comment"] = None
+
+        print(msg)
+        self.save(data, msg)
+
+
+    def switch_tracking(self) -> None:
+        """Switch a tracker by stopping the active tracker and starting a new one.
+
+        This function is basically an alias of "tt stop && tt start <project>".
+        """
+        # data = load()
+        # if not data["tracking"]["active"]:
+        #     print("No active tracker")
+        #     sys.exit(22)
+
+        if len(sys.argv) < 3:
+            print("You must specify a project id")
+            list_projects()
+            sys.exit(20)
+
+        self.stop_tracking()
+        self.start_tracking()
+
+
+    def change_tracking(self) -> None:
+        """Assign active tracker to new project.
+
+        This function updates the project an already active tracker is tracking
+        time in. It allows to reassign a tracker that has been started in a wrong
+        project.
+        """
+        if len(sys.argv) < 3:
+            print("You must specify a project id")
+            self.list_projects()
+            sys.exit(20)
+
+        data = self.load()
+        project_id = self._get_project_id(data, sys.argv[2])
+
+        if not data["tracking"]["active"]:
+            print("No active tracker")
+            sys.exit(22)
+
+        # Change the project ID
+        data["tracking"]["project"] = project_id
+
+        msg = f"Tracker changed to project {self._project_name(data, project_id)}"
+        print(msg)
+        self.save(data, msg)
+
+
+    def reset_tracking(self) -> None:
+        """Reset start point to now() of an active tracker.
+
+        This will reset the start of the tracker to the current time and
+        basically resets the tracker.
+
+        Would be the same like "tt cancel && tt start <project>".
+        """
+        data = self.load()
+        if not data["tracking"]["active"]:
+            print("No active tracker")
+            sys.exit(22)
+
+        project_id = data["tracking"]["project"]
+
+        # Reset tracker
+        data["tracking"]["started"] = self._timestamp()
+
+        msg = f"Tracker resetted for project {self._project_name(data, project_id)}"
+        print(msg)
+        self.save(data, msg)
+
+
+    def pause_add(self,
+            arguments: list,
+            ) -> None:
+        """
+        """
+        #print("Add pause arguments: {}".format(arguments))
+
+        if len(arguments) < 3:
+            print("""You must specify exactly 3 arguments:
+                    30[-50]                 pause period in minutes
+                                            (if only one number is specified a
+                                            pause with this exact duration is
+                                            added - if a second number is given
+                                            (after a minus "-") a pause period of a
+                                            random duration between the 2 numbers
+                                            will be added)
+                    23                      project's number or name
+                    2019-03-14T09:46:26     add pause to period that starts at
+                                            this point in time
+                """)
+            sys.exit(1)
+
+        # Get the duration
+        a_duration = arguments[0].split("-")
+
+        if len(a_duration) == 1:
+            if str(a_duration[0]).isdigit:
+                pause_minutes = int(a_duration[0])
+                import random
+                random.seed()
+                pause_seconds = random.randint(0,59)
+            else:
+                print(f"Duration must be of type integer, is {type(a_duration[0])}")
+                sys.exit(2)
+
+        elif len(a_duration) == 2:
+            min_pause = a_duration[0]
+            max_pause = a_duration[1]
+
+            if not str(min_pause).isdigit():
+                print("Minimal pause time must be of type integer")
+                sys.exit(2)
+            if not str(max_pause).isdigit():
+                print("Maximum pause time must be of type integer")
+                sys.exit(2)
+
+            import random
+            random.seed()
+            pause_minutes = random.randint(int(min_pause), int(max_pause))
+            pause_seconds = random.randint(0, 59)
+
+        else:
+            print("""Pause duration must be either of type integer or a range
+            defined by 2 integers a and b in the form of a-b""")
+            sys.exit(2)
+
+        # Load data
+        data = self.load()
+
+        # Get the project
+        project_id = self._get_project_id(data, arguments[1])
+        project_name = self._get_project_name(data, project_id)
+        if not str(project_id).isdigit():
+            # Note that there is a project ID "p" specifying the pause project!
+            print(f"{arguments[1]} is a special project - you cannot add a pause")
+            sys.exit(2)
+
+        # Get the start time stamp of the logged period
+        period_start = "T".join(arguments[2:])
+
+
+        #print("pause duration:  {}:{} minutes".format(pause_minutes, pause_seconds))
+        #print("project:         {}".format(_project_name(data, project_id)))
+        #print("logged period:   {}".format(period_start))
+
+
+        # Get the tracked periods of the particular project and find a period that
+        # starts with period_start
+        tracked_periods = data["projects"][project_id]["history"]
+        try:
+            # First try to get a list of all timestamps that would match
+            # the given period timestamp
+            recorded_timestamps = [s[0] for s in tracked_periods if s[0].startswith(period_start)]
+            #print("Found {} possible timestamps: {}".format(
+            #    len(recorded_timestamps),
+            #    recorded_timestamps,
+            #    ))
+
+            if len(recorded_timestamps) == 0:
+                print("Could not find time period")
+                sys.exit(0)
+            elif len(recorded_timestamps) > 1:
+                print("Ambiguous time period, found {} possible time stamps:\n{}".format(
+                    len(recorded_timestamps),
+                    "\n".join(recorded_timestamps),
+                    ))
+                sys.exit(0)
+            else:
+                period_start = recorded_timestamps[0]
+            pos_history = [s[0] for s in tracked_periods].index(period_start)
+        except Exception as e:
+            print("Could not find a period starting at {period_start} for project {self._project_name(data, project_id)}")
+            return
+
+        #print("Found searched period {} at position {}".format(
+        #    period_start,
+        #    pos_history,
+        #    ))
+
+        # We have found the period we are looking for
+        # We need to split this period into 2 periods and create a new pause
+        # period!
+        period = tracked_periods[pos_history]
+        #print("Original period: {}".format(period))
+
+        original_start = datetime.datetime.strptime(period[0], self.dateformat)
+        original_end = datetime.datetime.strptime(period[1], self.dateformat)
+        original_duration = original_end - original_start
+
+        # We divide the period exactly in the middle
+        pause_time = original_duration / 2
+
+        # Create the missing time stamps
+        first_start = original_start
+        first_end = original_start + pause_time
+        second_start = first_end + datetime.timedelta(minutes = pause_minutes, seconds = pause_seconds)
+        second_end = second_start + pause_time
+
+        first_period = [
+                datetime.datetime.strftime(first_start, self.dateformat),
+                datetime.datetime.strftime(first_end, self.dateformat),
+                None
+                ]
+        second_period = [
+                datetime.datetime.strftime(second_start, self.dateformat),
+                datetime.datetime.strftime(second_end, self.dateformat),
+                None
+                ]
+        pause_period = [
+                datetime.datetime.strftime(first_end, self.dateformat),
+                datetime.datetime.strftime(second_start, self.dateformat),
+                None
+                ]
+
+        #print("First period:    {}".format(first_period))
+        #print("Pause period:    {}".format(pause_period))
+        #print("Second period:   {}".format(second_period))
+
+        # Before we start to modify the project's history
+        # we need to find the right spot in the pause project
+        if data["config"]["log_pause_times"]:
+            if "p" not in data["projects"]:
+                print("No pause project")
+                sys.exit(1)
+
+            pause_history = data["projects"]["p"].get("history", [])
+
+            #print("{} pause entries".format(len(pause_history)))
+            pos_pause = 0
+            for p in pause_history:
+                if datetime.datetime.strptime(p[0], self.dateformat) <= first_end:
+                    pos_pause += 1
+                else:
+                    break
+
+            #print("Insert new pause period at position {}".format(pos_pause))
+
+
+        # Now we modify the histories
+
+        # Modify the project's history
+        # Delete the original period ...
+        del(tracked_periods[pos_history])
+        # ... and insert the 2 new periods
+        tracked_periods.insert(pos_history, first_period)
+        tracked_periods.insert(pos_history + 1, second_period)
+
+        # Add the new pause period to the pause history
+        if data["config"]["log_pause_times"]:
+            pause_history.insert(pos_pause, pause_period)
+
+
+        # Save the data to the data structure
+        data["projects"][project_id]["history"] = tracked_periods
+        if data["config"]["log_pause_times"]:
+            data["projects"]["p"]["history"] = pause_history
+
+        # Finally, save the data structure back to disk
+        # Provide a message for the user to let him know what's going on
+        msg = f"Added pause of {pause_minutes}:{pause_seconds} minutes in project {self._project_name(data, project_id)} at {pause_period[0]}"
+
+        print(msg)
+        self.save(data, msg=msg)
+
+
+    def pause_tracking(self) -> None:
+        """Pauses a tracker.
+
+        This function only works if tracking pause times is enabled in the local
+        configuration. Otherwise this function will exit with an error code.
+        If activated the current tracker will be stopped and the tracker of the
+        special pause project will be started.
+
+        The opposite of this function is resume_tracking().
+        """
+        if len(sys.argv) >= 3:
+            if sys.argv[2].lower() == "enable":
+                self.enable_pause()
+            elif sys.argv[2].lower() == "disable":
+                self.disable_pause()
+            elif sys.argv[2].lower() == "add":
+                self.pause_add(sys.argv[3:])
+            else:
+                print(f"Unsupported argument(s): {' '.join(sys.argv[2:])}")
+            sys.exit(0)
+
+        data = self.load()
+
+        if not data["tracking"]["active"]:
+            print("No active tracker")
+            sys.exit(22)
+
+        if not data["config"]["log_pause_times"]:
+            print("Disabled in local configuration - try \"tt stop\" instead")
+            sys.exit(42)
+
+        try:
+            # Stop the running "normal" tracker
+            project_id = data["tracking"]["project"]
+
+            if project_id == 'p':
+                print("Already paused")
+                sys.exit(24)
+
+            started = data["tracking"]["started"]
+            stopped = self._timestamp()
+            diff, hf, hhmm = self._time_diff(started, stopped)
+
+            comment = data["tracking"]["comment"]
+
+            # add tuple to history
+            history = data["projects"][project_id]["history"]
+            history.append( (started, stopped, comment) )
+            data["projects"][project_id]["history"] = history
+
+            # Start the pause tracker
+            # project_id = data["meta"]["last_project"]
+            data["tracking"]["active"] = True
+            data["tracking"]["project"] = 'p'
+            data["tracking"]["started"] = self._timestamp()
+            data["tracking"]["comment"] = None
+
+            msg = f"Paused tracker for project {self._project_name(data, project_id)} after {hhmm} ({hf:1.2f} hours)"
+
+            if comment:
+                msg += f": \"{comment}\""
+
+            # Save the project_id as last_project
+            data["meta"]["last_project"] = project_id
+
+            print(msg)
+
+        except Exception as e:
+            # We have to deal with an entry we cannot read (and parse) correctly.
+            # This might happen if the tracker refers to a non-existing project
+            # ID. We should simply deactivate the tracker.
+            msg = f"Error occurred while trying to pause tracker: {e}"
+            print(msg)
+
+        self.save(data, msg)
+
+
+    def resume_tracking(self) -> None:
+        """Resume a tracker.
+
+        This function does work even if tracking of pause times is disabled.
+        However, if tt is in pause mode this function will stop the tracker
+        of the pause project and start the tracker of the project that has
+        been paused. It's ID is saved as last_project in the meta section
+        of the data file.
+
+        If there is no running (pause) tracker this function will start a
+        new timer for the project id saved as last_project in the meta
+        section of the data file.
+        """
+        data = self.load()
+
+        # If resume is called and not tracker is active, we will start a
+        # new tracker for the last project used
+        if not data["tracking"]["active"]:
+            self.start_tracking(data["meta"]["last_project"])
+            sys.exit(0)
+
+        try:
+            project_id = data["tracking"]["project"]
+
+            if project_id != 'p':
+                print("No pause tracker")
+                sys.exit(22)
+
+            started = data["tracking"]["started"]
+            stopped = self._timestamp()
+            diff, hf, hhmm = self._time_diff(started, stopped)
+
+            comment = data["tracking"]["comment"]
+
+            # add tuple to history
+            history = data["projects"]['p']["history"]
+            history.append( (started, stopped, comment) )
+            data["projects"]['p']["history"] = history
+
+            # Resume old tracker
+            project_id = data["meta"]["last_project"]
+            data["tracking"]["active"] = True
+            data["tracking"]["project"] = project_id
+            data["tracking"]["started"] = self._timestamp()
+            data["tracking"]["comment"] = None
+
+            msg = f"Resumed tracker for project {self._project_name(data, project_id)} after pause of {hhmm} ({hf:1.2f} hours)"
+
+            if comment:
+                msg += f": \"{comment}\""
+
+            print(msg)
+
+        except Exception as e:
+            # We have to deal with an entry we cannot read (and parse) correctly.
+            # This might happen if the tracker refers to a non-existing project
+            # ID. We should simply deactivate the tracker.
+            msg = f"Error occurred while trying to pause tracker: {e}"
+            print(msg)
+
+        self.save(data, msg)
+
+
+    def add_comment(self) -> None:
+        """Switch a tracker by stopping the active tracker and starting a new one.
+
+        This function is basically an alias of "tt stop && tt start <project>".
+        """
+        # data = load()
+        # if not data["tracking"]["active"]:
+        #     print("No active tracker")
+        #     sys.exit(22)
+
+        data = self.load()
+
+        if not data["tracking"]["active"]:
+            print("No active tracker")
+            sys.exit(22)
+
+        if len(sys.argv) < 3:
+            print("You must provide (at least one word as) a comment")
+            sys.exit(50)
+
+        comment = " ".join(sys.argv[2:]).strip()
+
+        project_id = data["tracking"]["project"]
+        data["tracking"]["comment"] = comment
+
+        msg = f"Added comment to project {self._project_name(data, project_id)}: {comment}"
+        self.save(data, msg)
+        print(msg)
+
+
+
+    # TODO: def delete_comment(self) -> None:
+
+
+    #############################################################################
+    ### Output
+    #############################################################################
+
+    def show(self,
+            limit: int = 10,
+            ) -> None:
+        """Show the recorded times.
+
+        You can specify a project ID to show only the times for this particular
+        project. If you do not specify a particular project, a list of all
+        recorded times will be printed to the console in the following format:
+          1   LRZ
+                  2017-07-31      07:53 - 16:58      09:05  (9.08 hours)
+                  2017-08-07      07:15 - 15:22      08:07  (8.12 hours)
+                  2017-08-10      07:56 - 11:00      03:04  (3.07 hours)
+                                  11:01 - 16:46      05:45  (5.76 hours)
+
+        If limit is specifed, only the last limit + 1 log entries are displayed
+        when no project ID is given (i.e. in the overview page). If a project
+        ID is given, this limit will be ignored because we assume that the user
+        wants to see every detail of the particular project.
+
+        A running tracker will displayed independently from the limit.
+        limit specifies the number of "finished" log entries to display.
+
+        The special pause project will only be displayed if tracking pause
+        times is enabled in the local configuration.
+
+        :param limit:   Number of entries to max. display per project
+        :type limit:    int
+        """
+        data = self.load()
+        project_ids = list() # list of project ids to display
+        # first = True
+        detailed_view = False
+
+        if len(sys.argv) < 3:
+            # no project ID given, get list of all available project IDs
+            project_ids = sorted(list(data["projects"].keys()))
+        elif len(sys.argv) >= 3:
+            # project ID given, use it
+            project_ids = sys.argv[2:]
+            # project IDs are given, ignoring the limit
+            limit = 0
+            detailed_view = True
+
+        running_tracker = False
+        try:
+            running_tracker = data["tracking"]["active"]
+            running_project = data["tracking"]["project"]
+            running_since = data["tracking"]["started"]
+            running_comment = data["tracking"]["comment"]
+            running_since_day, running_since_time = self._to_day_and_time(running_since)
+        except:
+            # in case of any error, set running_tracker to False
+            running_tracker = False
+
+        for raw_project_id in project_ids:
+            project_id = self._get_project_id(data, raw_project_id)
+
+            # Do not display pause project if pause times should not
+            # be logged
+            if project_id == 'p' and not data.get("config", {}).get("log_pause_times", False):
+                continue
+
+            if project_id is None:
+                # could not look up project's ID
+                # inform user and continue with next ID
+                print(f"Project {bcolors.YELLOW}{raw_project_id}{bcolors.END} not found")
+                continue
+
+            try:
+                project_name = data["projects"][project_id]["name"]
+                history = data["projects"][project_id]["history"]
+            except KeyError as e:
+                # Key (project_id) not found
+                # continue with next loop run
+                continue
+
+            # Print the project's name
+            if project_id.isdigit():
+                print(f"    {bcolors.YELLOW}{project_id:>3}{bcolors.END}   {project_name}")
+            else:
+                print(f"    {bcolors.BLUE}{project_id:>3}{bcolors.END}   {project_name}")
+
+            # print the history
+            if len(history) == 0:
+                if not running_tracker or running_project != project_id:
+                    # Print only if there is no currently active tracker
+                    # for this project
+                    print("              No entries")
+
+            old_day = ""
+            total = 0.0
+            day_total = 0.0
+
+            if limit and limit < len(history):
+                history_to_display = history[(len(history) - limit):]
+                skipped = len(history) - limit
+                if skipped > 0:
+                    if skipped == 1:
+                        txt = "1 more entry"
+                    else:
+                        txt = f"{skipped} more entries"
+
+                    print(f"              ... {txt} - use \"{self.my_name} {sys.argv[1]} {project_id}\" to display complete history")
+            else:
+                history_to_display = history
+
+            for item in sorted(history_to_display):
+                started, stopped, comment = item
+                secs, hf, hhmm = self._time_diff(started, stopped)
+                total = total + hf
+                day, time_started = self._to_day_and_time(started)
+                _, time_stopped = self._to_day_and_time(stopped)
+                str_day = f"{day:16}"
+                if day != old_day:
+                    day_total = hf
+                    str_day_total = ""
+                else:
+                    str_day = " " * 16
+                    day_total = day_total + hf
+                    str_day_total = f"{' ' * 6}{day_total:1.2f} hours total"
+
+                if not comment:
+                    comment = ""
+                else:
+                    str_day_total += " " * (22 - len(str_day_total))
+                    comment = f"{bcolors.CYAN}{comment}{bcolors.END}"
+
+                print(f"              {str_day}{time_started:5} - {time_stopped:11}{hhmm:7}({hf:1.2f} hours){str_day_total}      {comment}")
+                old_day = day
+
+            if running_tracker and running_project == project_id:
+                # TODO: Cleanup this stuff
+                day, time_started = self._to_day_and_time(running_since)
+                time_stopped = ""
+                _, hf, hhmm = self._time_diff(running_since, self._timestamp())
+                total = total + hf
+                str_day = f"{running_since_day:16}"
+                str_day_total = f"{' ' * 6}tracking"
+
+                if running_since_day == old_day:
+                    str_day = " " * 16
+                    day_total = day_total + hf
+                    str_day_total = f"{' ' * 6}{day_total:1.2f} hours total (tracking)"
+
+                if not running_comment:
+                    running_comment = ""
+                else:
+                    running_comment = f"{bcolors.CYAN}{comment}{bcolors.END}"
+
+
+                #print("              {sd}{started:5} - {stopped:11}{hhmm:7}({hf:1.2f} hours)      tracking              {c}".format(sd=str_day, started=running_since_time, stopped=time_stopped, hhmm=hhmm, hf=hf, c = running_comment))
+                #
+                print(f"              {str_day}{time_started:5} - {time_stopped:11}{hhmm:7}({hf:1.2f} hours){str_day_total}      {running_comment}")
+
+
+            if detailed_view:
+                print(f"              Total time tracked: {total:9.2f} hours")
+
+
+    def csv(self,
+            table: bool= False,
+            ) -> None:
+        """Outputs the tracked time(s) of a particular project in a format that can be
+        easily pasted to our "Zeiterfassungsbogen".
+
+        :param table:   Print a pretty table instead of boring comma-separated values
+        :type table:    bool
+        """
+        data = self.load()
+        project_ids = list() # list of project ids to display
+
+        # We only support to display a single project
+        # to be able to keep the output clean and easily usable
+        # to be automatically fed to another application for further
+        # utilization
+
+        if len(sys.argv) != 3:
+            print("You must specify exactly one project to display")
+            sys.exit(0)
+
+        raw_project_id = sys.argv[2]
+        project_id = self._get_project_id(data, raw_project_id)
+
+        try:
+            project_name = data["projects"][project_id]["name"]
+            history = data["projects"][project_id]["history"]
+        except KeyError as e:
+            # Key (project_id) not found
+            print(f"Project {bcolors.YELLOW}{raw_project_id}{bcolors.END} not found")
+            return
+
+        dict_to_print = {}
+        # { "YYYY-MM-DD": {
+        #       "day_total": float,
+        #       "entries": [str],
+        #   }
+        # }
+
+        for item in sorted(history):
+            started, stopped, comment = item
+            secs, hf, hhmm = self._time_diff(started, stopped)
+            day, time_started = self._to_day_and_time(started)
+            _, time_stopped = self._to_day_and_time(stopped)
+            entries_to_print = []
+
+            # Get entries for particular day
+            day_data = dict_to_print.get(day, {})
+            day_entries = day_data.get("entries", [])
+            day_total = day_data.get("day_total", 0.0)
+
+            day_total = day_total + hf
+            o_started = datetime.datetime.strptime(started, self.dateformat)
+            o_stopped = datetime.datetime.strptime(stopped, self.dateformat)
+            s_started = datetime.datetime.strftime(o_started, "%H:%M")
+            s_stopped = datetime.datetime.strftime(o_stopped, "%H:%M")
+
+            day_entries.append(f"{s_started} - {s_stopped}")
+
+            day_data["day_total"] = day_total
+            day_data["entries"] = day_entries
+            dict_to_print[day] = day_data
+
+        # Now we need to print it
+        delimiter = ";"
+
+        if table:
+            # Use PrettyTable to create a pretty table
+            try:
+                from prettytable import PrettyTable
+                t = PrettyTable()
+
+                t.field_names = ["Day", "Times", "Hours"]
+                t.align["Day"] = "l"
+                t.align["Times"] = "l"
+                t.align["Hours"] = "r"
+
+            except Exception as e:
+                print("Could not import module prettytable")
+                sys.exit(6)
+
+        for day in sorted(dict_to_print.keys()):
+            day_data = dict_to_print[day]
+            entries = ", ".join(day_data["entries"])
+            f_day_total = f"{day_data['day_total']:.2f}"
+            day_total = str(f_day_total).replace(".", ",")
+
+            if table:
+                t.add_row([day, entries, day_total])
+            else:
+                print(f"\"{day}\"{delimiter}\"{entries}\"{delimiter}\"{day_total}\"")
+
+        if table:
+            print(t)
+
+
+    #############################################################################
+    ### Entry point
+    #############################################################################
+
+    """Main function/entry point when starting the program.
+
+    Parses the arguments and calls the appropriate functions.
+    """
+    def __init__(self,
+            argv: list,
+            ):
+
+        # Sanity check: only proceed if we are in a python3 environment
+        try:
+            assert sys.version_info >= (3,6)
+        except:
+            print(f"Python 3.6 is required to run {self.my_name}")
+            sys.exit(1)
+
+        if len(sys.argv) == 2 and sys.argv[1].lower() == "init":
+            self.init()
+            sys.exit(0)
+        elif len(sys.argv) <= 1:
+            self.status()
+            sys.exit(0)
+
+        cmd = self.parse_command(sys.argv[1].lower())
+
+        if cmd == "status":
+            self.status()
+        elif cmd == "log":
+            self.print_log()
+        elif cmd == "cleanup":
+            self.cleanup()
+
+        elif cmd == "aliases":
+            self.print_aliases()
+        elif cmd == "alias":
+            self.alias()
+        elif cmd == "unalias":
+            self.unalias()
+
+        elif cmd == "list":
+            self.list_projects()
+        elif cmd == "add":
+            self.add_project()
+        elif cmd == "delete":
+            self.delete_project()
+        elif cmd == "rename":
+            self.rename_project()
+        elif cmd == "show":
+            self.show()
+        elif cmd == "csv":
+            self.csv()
+        elif cmd == "tab":
+            self.csv(table = True)
+
+        elif cmd == "pause":
+            self.pause_tracking()
+        elif cmd == "resume":
+            self.resume_tracking()
+        elif cmd == "start":
+            self.start_tracking()
+        elif cmd == "stop":
+            self.stop_tracking()
+        elif cmd == "switch":
+            self.switch_tracking()
+        elif cmd == "change":
+            self.change_tracking()
+        elif cmd == "cancel":
+            self.cancel_tracking()
+        elif cmd == "reset":
+            self.reset_tracking()
+        elif cmd == "comment":
+            self.add_comment()
+
+        else:
+            self.usage()
+
 
 class bcolors:
     """
@@ -112,1863 +1969,8 @@ class bcolors:
 
 
 
-def _get_project_id(data, project_id_or_name):
-    """Look up and return a project's ID if it exists.
-
-    If the project ID is given, this ID will be returned if the project
-    exists in the data. If a project's name is given, this function
-    looks up the name in data and return the ID of the project.
-    If the project could not be found, this function returns None.
-
-    :param data:                Data object representing the current state
-    :type data:                 dict
-    :param project_id_or_name:  Argument given by caller representing either a project ID or name
-    :type project_id_or_name:   str
-    :return:                    ID of the project in the data object
-    :rtype:                     str
-    """
-    # print(type(project_id_or_name))
-    pin = None
-    if isinstance(project_id_or_name, str):
-        pin = project_id_or_name
-    elif isinstance(project_id_or_name, list):
-        pin = " ".join(project_id_or_name)
-    else:
-        print("Could not look up project ID for {} ({})".format(project_id_or_name, type(project_id_or_name)))
-        return None
-
-
-    # If we have a positive number project_id_or_name could be the
-    # ID itself. Let's check
-    if pin.isdigit() or pin in ['p']:
-        if pin in data["projects"].keys():
-            return pin
-            # return project_id_or_name
-
-    # project_id_or_name is not the project ID. Let's search all projects'
-    # names
-    for project_id, project in data["projects"].items():
-        if pin == project["name"]:
-            return project_id
-
-    # Ok, did not find anything yet. Maybe the case of the letters is
-    # different... since we found nothing yet, let's try that.
-    # Note, that case-removing conversions in unicode aren't trivial. There
-    # is text for which text.lower() != text.upper().lower(), such as "ß":
-    #  "ß".lower()
-    #  #>>> 'ß'
-    #  "ß".upper().lower()
-    #  #>>> 'ss'
-    for project_id, project in data["projects"].items():
-        if pin.lower() == project["name"].lower():
-            return project_id
-
-    # We could not find the string neither in the IDs nor in the names.
-    # Giving up.
-    print("Project {cb}{pid}{ce} not found".format(cb=bcolors.YELLOW, pid=project_id_or_name, ce=bcolors.END))
-    sys.exit(12)
-
-    return None
-
-
-def _get_list_of_project_ids(only_numeric = False):
-    """Get a list of all existing project IDs.
-
-    :param only_numeric:    Return only numeric IDs (== normal projects)
-    :type only_numeric:     bool
-    :return:                All assigned project IDs
-    :rtype:                 list of str (!)
-    """
-    data = load()
-    all_project_ids = list(data["projects"].keys())
-    result = []
-
-    if not only_numeric:
-        result = all_project_ids
-    else:
-        for i in all_project_ids:
-            try:
-                int(i)
-                result.append(i)
-            except:
-                continue
-
-    # print("Return (only_numeric = {}): {}".format(only_numeric, result))
-    return result
-
-
-def _get_project_name(data, project_id):
-    """Return the name of a project.
-
-    Get a project's name. Consider using _project_name() function below if
-    you need to display the project's name in-line.
-
-    :param data:        Data object representing the current state
-    :type data:         dict
-    :param project_id:  ID of project
-    :type project_id:   str
-    :return:            Name of the project
-    :rtype:             str
-    """
-    try:
-        return data["projects"][project_id]["name"]
-    except:
-        return None
-
-
-def _project_name(data, project_id):
-    """Return a colored string representing a project.
-
-    Returns a string that can be used every time when a project's name needs
-    do be displayed. Using this function makes sure that the name is always
-    printed in the same way making it easier to use tt.
-
-    :param data:        Data object representing the current state
-    :type data:         dict
-    :param project_id:  ID of project
-    :type project_id:   str
-    :return:            Colored string to print on the command line
-    :rtype:             str or None
-    """
-    pname = _get_project_name(data, project_id)
-
-    # try:
-    #     is_numeric = int(project_id) in _get_list_of_project_ids(only_numeric = True)
-    # except:
-    #     is_numeric = False
-
-    is_numeric = project_id in _get_list_of_project_ids(only_numeric = True)
-
-    if pname is not None:
-        if is_numeric:
-            # r = "\"{cpb}{pname}{ce}\" ({cib}{i}{ce})".format(
-            r = "{cib}{i}{ce}: \"{pname}\"".format(
-                                                     cpb=bcolors.END,
-                                                     pname=pname,
-                                                     ce=bcolors.END,
-                                                     cib=bcolors.YELLOW,
-                                                     i=project_id)
-        else:
-            r = "{cib}{i}{ce}: \"{pname}\"".format(
-                                                     cpb=bcolors.END,
-                                                     pname=pname,
-                                                     ce=bcolors.END,
-                                                     cib=bcolors.BLUE,
-                                                     i=project_id)
-    else:
-        r = None
-
-    return r
-
-
-def _timestamp():
-    """Return a timestamp.
-
-    This timestamp is crucial since it is used in the JSON file to store
-    the beginning and end of the the time periods.
-    We use the ISO format to ensure that humans can read (and modify) the
-    values manually if needed.
-
-    :return:    Return a timestamp used to calculate tracking times
-    :rtype:     str
-    """
-    return datetime.datetime.now().strftime(dateformat)
-
-
-def _time_diff(started, stopped):
-    """
-    Calculate the difference between to datetimes.
-    Returns a 3-tuple containing
-        seconds as float (e.g., 23132.0 seconds)
-        hour_frac as float (e.g., 0.3455353 hours)
-        hhmm as string (e.g., 01:23)
-    """
-    a = datetime.datetime.strptime(started, dateformat)
-    b = datetime.datetime.strptime(stopped, dateformat)
-    c = b - a
-    seconds = c.total_seconds()
-    hour_frac = seconds / 3600
-    hhmm = "{h:02}:{m:02}".format(h=c.seconds//3600, m=(c.seconds//60)%60)
-
-    # return tuple
-    return (seconds, hour_frac, hhmm)
-
-
-def _to_day_and_time(isodateformat):
-    """
-    Return the day and the time from an ISO-formatted date.
-    Given a timestamp, the day and the time will be returned as a 2-tuple with
-    the day in format YYYY-mm-dd as first element and the time in format HH:MM
-    as the second element of the tuple.
-    """
-    day = datetime.datetime.strptime(isodateformat, dateformat).strftime('%Y-%m-%d')
-    time = datetime.datetime.strptime(isodateformat, dateformat).strftime('%H:%M')
-    return (day, time)
-
-
-
-#############################################################################
-### Configuration functions
-#############################################################################
-
-
-def enable_log():
-    """Enable log functionality.
-
-    This function reconfigures and saves the particular setting in the
-    data files's config section.
-    """
-    data = load()
-    if not data["config"]["log_actions"]:
-        msg = "Enabled log"
-        data["config"]["log_actions"] = True
-        print(msg)
-        save(data, msg)
-    else:
-        print("Log already enabled")
-
-
-def disable_log():
-    """Disable log functionality.
-
-    This function reconfigures and saves the particular setting in the
-    data files's config section.
-    """
-    data = load()
-    if data["config"]["log_actions"]:
-        msg = "Disabled log"
-        data["config"]["log_actions"] = False
-        print(msg)
-        save(data, msg)
-    else:
-        print("Log already disabled")
-
-
-def enable_pause():
-    """Enable tracking pause times.
-
-    This function reconfigures and saves the particular setting in the
-    data files's config section.
-    """
-    data = load()
-    if not data["config"]["log_pause_times"]:
-        msg = "Enabled tracking of pause times"
-        data["config"]["log_pause_times"] = True
-        print(msg)
-        save(data, msg)
-    else:
-        print("Tracking of pause times already enabled")
-
-
-def disable_pause():
-    """Disable tracking pause times.
-
-    This function reconfigures and saves the particular setting in the
-    data files's config section.
-    """
-    data = load()
-    if data["config"]["log_pause_times"]:
-        msg = "Disabled tracking of pause times"
-        data["config"]["log_pause_times"] = False
-        print(msg)
-        save(data, msg)
-    else:
-        print("Tracking of pause times already disabled")
-
-
-
-#############################################################################
-### Data file functions
-#############################################################################
-
-def load():
-    """Load data file contents.
-
-    Load the JSON datafile and return a dict with all the values.
-
-    :return:    Data object representing the current state
-    :rtype:     dict
-    """
-    global DATA
-    if DATA:
-        return DATA
-
-    try:
-        fp = open(f, "r")
-        data = json.load(fp)
-        fp.close()
-    except FileNotFoundError as e:
-        print("Could not load data file. Please run", bcolors.YELLOW, "init", bcolors.END, "first.")
-        sys.exit(3)
-    except Exception as e:
-        print(e)
-        sys.exit(4)
-
-    if data is None:
-        print("Read corrupt data from", f)
-        sys.exit(5)
-
-    # Apply upgrade to the data read from the disk (if needed)
-    data = _file_version_upgrade(data)
-    DATA = data
-
-    return data
-
-
-def save(data, msg = None):
-    """Write the data dict object to disk in JSON format.
-
-    If a msg is set, this text will be appended to the log in the datafile
-    if logging in the config section is set to True (which is the default).
-
-    :param data:    Data object representing the current state
-    :type data:     dict
-    :param msg:     ID of project
-    :type msg:      str
-    """
-    if data is not None:
-        if msg is not None and data.get("config", {}).get("log_actions", False):
-            data.get("log", []).append("{ts}  {msg}".format(ts = _timestamp().replace('T', ' '), msg = msg))
-
-        global DATA
-        DATA = data
-
-        try:
-            fp = open(f, "w")
-            json.dump(data, fp, indent=2)
-            fp.flush()
-            fp.close()
-        except Exception as e:
-            print(e)
-            sys.exit(7)
-    else:
-        print("No data to write")
-
-
-def _file_version_upgrade(data = None):
-    """This function migrates a data file from on old version to a new version.
-
-    If the data object is given as an argument, this function will operate on
-    the provided data object otherwise the data will be loaded from disk.
-    The version of the data file and the version needed by tt will be
-    compared. If needed, modifications are applied to the data object.
-    After applying all modifications the data object is stored to disk and
-    is returned by this function.
-
-    :param data:    (Optional) Data object representing the current state
-    :type data:     dict
-    :return:        Return updated data object
-    :rtype:         dict
-    """
-    # Load the data from the datafile on disk (if needed)
-    if data is None:
-        data = load()
-
-    # Determine the version of the data file as well as the version
-    # we need to migrate to
-    from_version = int(data["meta"]["file_version"])
-    to_version = int(DATAFILE_VERSION)
-
-    # Check if changes need to be made, otherwise return data object
-    if from_version >= to_version:
-        return data
-
-    current_version = from_version
-    while current_version < to_version:
-        if current_version == 1:
-            data["meta"]["file_version"] = 2
-            data["meta"]["last_project"] = None
-            data["config"] = {"log_pause_times": True, "log_actions": True,}
-            data["projects"]["p"] = {"name": "Pause", "history": []}
-            data["log"] = []
-
-        if current_version == 2:
-            data["meta"]["file_version"] = 3
-            data["tracking"]["comment"] = None  # Comments are stored here (as str)
-
-            for project_id, project_data in data["projects"].items():
-
-                # We need to build a new history for every project
-                # The old history contains 2-tuples with the start time
-                # and the end time of the tracker, the new history
-                # is a 3-tuple conainting an additional string
-                # representing a comment regarding this stint.
-                # This comment is None by default.
-                old_history = project_data["history"]
-                new_history = []
-
-                for (start_tracking, end_tracking) in old_history:
-                    print("Updating tuple: {} - {}".format(start_tracking, end_tracking))
-                    new_tuple = (start_tracking, end_tracking, None)
-                    new_history.append(new_tuple)
-
-                data["projects"][project_id]["history"] = new_history
-
-        if current_version == 3:
-            data["meta"]["file_version"] = 4
-            data["aliases"] = {
-                    "st": "status",
-                    "a": "add",
-                    "d": "delete",
-                    "l": "list",
-                    "ch": "change",
-                    "c": "comment",
-                    "p": "pause",
-                    "r": "resume",
-                    "s": "show",
-                    "sw": "switch",
-                    }
-
-        if current_version == 4:
-            # This version fixes a problem with the data file.
-            # We had a problem in the resume_tracking() function that
-            # prevented the comment from being written to the pause project's
-            # history. This would case an error when show() is called.
-            data["meta"]["file_version"] = 5
-
-
-            # We need to rebuild the history again.
-            # This time, only the pause project (ID: p) is affected.
-
-            # Old comments have not been written when the project is paused
-            # therefore this information has been lost earlier. We will set
-            # the comment value to None.
-            old_history = data["projects"]["p"]["history"]
-            new_history = []
-
-            for (start_tracking, end_tracking) in old_history:
-                print("Updating tuple: {} - {}".format(start_tracking, end_tracking))
-                new_tuple = (start_tracking, end_tracking, None)
-                new_history.append(new_tuple)
-
-            data["projects"]["p"]["history"] = new_history
-
-        # increment current_version to carry out next update if needed
-        current_version += 1
-
-    msg = "Converted data file format from version {f} to version {t}".format(f = from_version, t = to_version)
-    save(data, msg)
-    print(msg)
-
-    # Return upgraded data object
-    return data
-
-
-
-#############################################################################
-### Generic functions
-#############################################################################
-
-def init():
-    """Initialize a new datafile if it does not exist.
-
-    If a data file already exists, the program will return with an error code.
-    If an existing data file should be overwritten, the user needs to
-    manually delete the existing file.
-
-    The new data file will be written to disk and the program will exit.
-    """
-    if os.path.isfile(f):
-        print("Data file {} already exists".format(f))
-        sys.exit(2)
-    else:
-        print("Initializing new data file {}".format(f))
-
-        # Initialize new data dict
-        data = {
-                "meta": {
-                    "last_id": 0,
-                    "file_version": 4,
-                    "last_project": None,
-                    },
-                "config": {
-                    "log_pause_times": True,
-                    "log_actions": True,
-                    },
-                "tracking": {
-                    "active": False,
-                    "project": None,
-                    "started": None,
-                    "comment": None,
-                    },
-                "aliases": {
-                    "st": "status",
-                    "a": "add",
-                    "d": "delete",
-                    "l": "list",
-                    "ch": "change",
-                    "c": "comment",
-                    "p": "pause",
-                    "r": "resume",
-                    "s": "show",
-                    "sw": "switch",
-                },
-                "projects": {
-                    # id:    {
-                        # "name": Projektname,
-                        # "history": [] # elements are tuples (start, stop)
-                    # }
-                    # },
-
-                    # This is the special project "Pause".
-                    # This project is used for pause/resume timekeeping.
-                    "p": {
-                        "name": "Pause",
-                        "history": [],
-                        }
-                    },
-                "log": [],
-                }
-
-        # ... and write it to data file
-        save(data, "Initialized new data file")
-
-
-def status():
-    """Print current state.
-
-    If a tracker is active this function displays a brief summary of the
-    recent work period.
-    """
-    data = load()
-
-    # number_of_projects = len(data["projects"])
-
-    # # If pause times should not be logged we need to hide the project
-    # # from the user
-    # if not data.get("config", {}).get("log_pause_times", False):
-    #     number_of_projects -= 1
-
-    # print("{} projects".format(number_of_projects))
-
-    if not data["tracking"]["active"]:
-        print("No active time tracking")
-    else:
-        since = data["tracking"]["started"]
-        project_id = data["tracking"]["project"]
-        comment = data["tracking"]["comment"]
-        _, hf, hhmm = _time_diff(since, _timestamp())
-        msg = "Tracking time in project {name} for {hhmm} ({hf:0.2f} hours)".format(name=_project_name(data, project_id), hf=hf, hhmm=hhmm)
-
-        if comment:
-            msg += ": \"{c}\"".format(c = comment)
-
-        print(msg)
-
-def print_log(limit = 20):
-    """Print log.
-
-    If the log is enabled in the local configuration existing log entries
-    are printed to the console.
-    The user can also privde "enable", "disable", or a number as argument
-    together with the log keyword. If enable or disable is given, the
-    appropriate configuration update is carried out. If a number is given
-    this number is treated as the number of log entries to print.
-    """
-    if len(sys.argv) == 3:
-        if sys.argv[2].lower() == "enable":
-            enable_log()
-            sys.exit(0)
-        elif sys.argv[2].lower() == "disable":
-            disable_log()
-            sys.exit(0)
-        elif sys.argv[2].isdigit():
-            # Display last n entries
-            limit = int(sys.argv[2])
-
-    data = load()
-    if not data["config"]["log_actions"]:
-        print("Disabled in local config")
-        sys.exit(42)
-
-    # Get the last limit entries of the list of log entries
-    history = data["log"][-limit:]
-
-    # Print the log
-    for line in history:
-        print("{indent}{msg}".format(indent = " " * 2, msg = line))
-
-
-def cleanup():
-    """Clean up the projects.
-
-    This function will reassign new IDs to the project.
-    After the reorganization the file is saved to disk.
-    """
-    data = load()
-
-    # iterate the projects and reassign new IDs
-    old_projects = copy.deepcopy(data["projects"])
-    project_id = 0
-    data["projects"] = {}
-    for old_pid, project in old_projects.items():
-        if old_pid == "p":
-            data["projects"]["p"] = project
-        else:
-            project_id = project_id + 1
-            data["projects"][project_id] = project
-
-    # set the correct last ID
-    data["meta"]["last_id"] = project_id
-
-    # write to disk
-    save(data, "Cleaned up data file")
-    print("Successfully cleaned up {}".format(datafile))
-
-
-def parse_command(command_or_alias):
-    """Returns the name of a command (for an alias if defined).
-
-    The data file allows aliases to be defined to shorten commands the user
-    needs to type in.
-    This function returns the full command for a given alias if this
-    alias exists in the data file.
-    If the complete function name is given in the alias attribute and
-    such a command exists, this name will also be returned.
-
-    :return:    Command name that should be carried out
-    :rtype:     str or None
-    """
-    data = load()
-    commands = get_commands()
-
-    if command_or_alias in commands:
-        return command_or_alias
-    else:
-        resolved_alias = data.get("aliases", {}).get(command_or_alias, None)
-        if resolved_alias and resolved_alias in commands:
-            return resolved_alias
-
-    return None
-
-
-
-def get_command_groups():
-    """Defines the commands and the groups where they belong.
-
-    The dict that will be returned contains other dictionaries, each
-    representing a group of commands. These dictionaries can contain
-    a reserved key DESC that provides a human-readable short description
-    of this command group.
-
-    :return:    Group of commands used to display the help message
-    :rtype:     dict of dicts
-    """
-    group = {
-            "Generic commands": {
-                "DESC": "Commands to initialize {} and perform management tasks.".format(my_name),
-                "init": "Initialize new data file",
-                "status": "Display tracker status information",
-                "cleanup": "Cleanup and reorganize data file",
-                "log": "Show activity log",
-                "log enable": "Enable activity log",
-                "log disable": "Disable activity log",
-                "aliases": "Shows list of all defined aliases",
-                "alias a command": "Create or updates alias a for a particular command",
-                "unalias a": "Remove alias a",
-                },
-            "Projects": {
-                "DESC": "Before you can start a tracker you need to create a project to which this tracker is assigned. These commands allow you to add, delete and manage existing projects.",
-                "add project name": "Add new project with name \"project name\"",
-                "delete 23": "Delete project with id 23",
-                "list": "List projects and their ids",
-                "rename 23 new name": "Rename project with ID 23 to \"new name\"",
-                },
-            "Tracking": {
-                "DESC": "These commands allow to start and stop trackers as well as displaying tracked times in existing projects.",
-                "start 23": "Start time tracking for project id 23",
-                "stop": "Stop active time tracking",
-                "pause": "Pause an active tracker",
-                "pause add 30-50 23 2019-03-14T09:46:26":  "Add a pause of a random duration between 30 and 50 minutes to the project 23's time period started on 2019-03-14 09:46:26",
-                "pause disable": "Disable tracking of pause times",
-                "pause enable": "Enable tracking of pause times",
-                "resume": "Resume tracker from paused project or from last project used",
-                "show": "Show tracked times for all projects",
-                "show 23": "Show tracked times and some additional information for project 23",
-                "csv 23": "Show tracked times as CSV",
-                "tab 23": "Show tracked times in a pretty table format",
-                "switch 23": "Switch a tracker to a new project by stopping it and starting a new",
-                "change 23": "Chance project assigned to an active tracker",
-                "cancel": "Cancel active tracker and dismiss time",
-                "reset": "Reset time of active tracker",
-                "comment comment": "Add \"comment\" to the current active tracker",
-                }
-            }
-
-    dict_of_aliases = get_aliases()
-    if len(dict_of_aliases):
-        dict_of_aliases["DESC"] = "Aliases defined in the data file"
-        group["Aliases"] = dict_of_aliases
-
-    return group
-
-
-def get_commands():
-    """Returns a set of all commands available by this version of tt.
-
-    This set does not contain aliases defined in the data file but only
-    full commands. It will be used for input parsing.
-
-    :return:    All commands available to the user
-    :rtype:     Set of strings
-    """
-    groups = get_command_groups()
-    result = set()
-
-    for group_name, group in groups.items():
-        if group_name != "Aliases":
-            for command in group.keys():
-                if command != "DESC":
-                    result.add(command.split(" ")[0])
-
-    return result
-
-
-
-
-def usage():
-    """Print the list of commands that are supported.
-
-    This function is called everytime  the user calls tt with no or too
-    few arguments.
-    """
-    group = get_command_groups()
-
-    # Display the commands/dicts
-    first = True
-    for group, commands in group.items():
-        if first:
-            first = False
-        else:
-            print("\n")
-        print(bcolors.PURPLE, "{group}".format(group=group), bcolors.END)
-
-        # print the DESC if needed
-        if "DESC" in commands:
-            print("     {desc}\n".format(desc=commands["DESC"]))
-
-        # print all commands (and not DESC)
-        for command, description in sorted(commands.items()):
-            if command != "DESC":
-                print(bcolors.YELLOW, "    {cmd:20s}".format(cmd=command), bcolors.END, description)
-
-
-
-def get_aliases():
-    """Return a dict containing all aliases defined.
-
-    Key is the alias, value is the command to call.
-
-    :return:    All defined aliases
-    :rtype:     dict
-    """
-    data = load()
-    aliases = data.get("aliases", {})
-
-    dict_of_aliases = {}
-    if len(aliases) > 0:
-
-        for alias, command in aliases.items():
-            dict_of_aliases[alias] = command
-
-    return dict_of_aliases
-
-
-
-
-def print_aliases():
-    """Print list of defined aliases.
-    """
-    aliases = get_aliases()
-    for alias, command in sorted(aliases.items()):
-        print("{:>4}    {}".format(alias, command))
-
-
-def alias():
-    """Add or update an alias for a particular command.
-
-    The alias will only be added to the data file if a valid command is
-    specified.
-    """
-    if len(sys.argv) < 4:
-        print("You must specify alias and command")
-        sys.exit(30)
-
-    data = load()
-    alias = sys.argv[2]
-    command = sys.argv[3]
-
-    if command in get_commands():
-        data["aliases"][alias] = command
-        msg = "Created alias {alias} for command {cmd}".format(alias = alias, cmd = command)
-        save(data, msg)
-        print(msg)
-    else:
-        print("Could not create alias {} for {}: Invalid command".format(alias, command))
-        sys.exit(31)
-
-
-def unalias():
-    """Removes alias from the data file.
-    """
-    if len(sys.argv) < 3:
-        print("You must specify alias to remove")
-        sys.exit(30)
-
-    data = load()
-    alias = sys.argv[2]
-
-    if alias in data["aliases"].keys():
-        msg = "Removed alias {alias} for {cmd}".format(alias = alias, cmd = data["aliases"][alias])
-        del data["aliases"][alias]
-        save(data, msg)
-        print(msg)
-    else:
-        print("Alias {} not defined".format(alias))
-        sys.exit(32)
-
-
-#############################################################################
-### Projects
-#############################################################################
-
-def list_projects():
-    """Print all existing projects.
-
-    The special project p is only displayed if tracking pause times is enabled
-    in the local configuration.
-    """
-    data = load()
-    p = data.get("projects", {})
-    show_pause_project = data.get("config", {}).get("log_pause_times", False)
-
-    if len(p) == 0:
-        print("No projects found.")
-    else:
-        for project_id, project_data in sorted(p.items()):
-            if project_id == "p" and not show_pause_project:
-                continue
-            #print("    {i:>3}   {n}".format(i=project_id, n=project_data["name"]))
-            if project_id.isdigit():
-                print("    {cb}{i:>3}{ce}   {n}".format(cb=bcolors.YELLOW, i=project_id, ce=bcolors.END, n=project_data["name"]))
-            else:
-                print("    {cb}{i:>3}{ce}   {n}".format(cb=bcolors.BLUE, i=project_id, ce=bcolors.END, n=project_data["name"]))
-
-
-def add_project():
-    """Add a project.
-
-    You need to specify a project name. The project name can contain spaces.
-    When created, this function prints the id of the created project.
-    """
-    if len(sys.argv) < 3:
-        print("You must specify a project name")
-        sys.exit(10)
-
-    name = " ".join(sys.argv[2:]).strip()
-
-    data = load()
-    project = {}
-    project_id = int(data["meta"].get("last_id", 0)) + 1
-
-    # If there is a bogus last_id in our file, we need to make sure that no
-    # existing data will be overwritten
-
-    existing_project_ids = _get_list_of_project_ids(only_numeric = True)
-    if project_id in existing_project_ids:
-        # Get the biggest existing project ID and increase it by 1
-        project_id = max(existing_project_ids) + 1
-
-    project["name"] = name
-    project["history"] = []
-
-    projects = data.get("projects", {})
-    projects[project_id] = project
-
-    data["meta"]["last_id"] = project_id
-    data["projects"] = projects
-
-    msg = "Created project {name}".format(name=_project_name(data, project_id))
-    save(data, msg)
-    print(msg)
-
-
-def delete_project():
-    """Delete a project.
-
-    You need to specify a project id.
-    """
-    if len(sys.argv) < 3:
-        print("You must specify a project id")
-        list_projects()
-        sys.exit(11)
-
-    data = load()
-    project_id = _get_project_id(data, sys.argv[2:])
-
-    if project_id not in data.get("projects", {}).keys():
-        print("Project {cb}{pid}{ce} not found".format(cb=bcolors.YELLOW, pid=project_id, ce=bcolors.END))
-        sys.exit(12)
-    elif not project_id.isdigit():
-        print("Not allowed to delete special project {name}".format(name=_project_name(data, project_id)))
-    else:
-        msg = "Project {name} deleted".format(name=_project_name(data, project_id))
-        del data["projects"][project_id]
-        print(msg)
-        save(data, msg)
-
-
-def rename_project():
-    """Rename a project.
-
-    You need to specify a project id and a new project name.
-    """
-    if len(sys.argv) < 4:
-        print("You must specify a project id and a new project name")
-        list_projects()
-        sys.exit(11)
-
-    project_id = sys.argv[2]
-    new_name = " ".join(sys.argv[3:])
-
-    data = load()
-    if project_id not in data.get("projects", {}):
-        print("Project {cb}{pid}{ce} not found".format(cb=bcolors.YELLOW, pid=project_id, ce=bcolors.END))
-        sys.exit(12)
-    elif not project_id.isdigit():
-        print("Not allowed to rename special project {name}".format(name=_project_name(data, project_id)))
-    else:
-        data["projects"][project_id]["name"] = new_name
-        msg = "Assigned new name to project {name}".format(name=_project_name(data, project_id))
-        print(msg)
-        save(data, msg)
-
-
-
-
-#############################################################################
-### Time tracking
-#############################################################################
-
-def start_tracking(project_id = None):
-    """Start a tracker for a given project.
-
-    You must specify a project id when starting a tracker. The recorded
-    time will be stored in the particular project's context.
-    If a tracker is alreay active, a warning will be displayed and the
-    tracker will not be started.
-
-    The optional argument project_id allows to start a new tracker
-    programatically and will be used for pause/resume operations.
-
-    :param project_id:  ID of project
-    :type project_id:   str
-    """
-    if project_id is None and len(sys.argv) < 3:
-        print("You must specify a project id")
-        list_projects()
-        sys.exit(20)
-
-    data = load()
-    if project_id is None:
-        project_id = _get_project_id(data, sys.argv[2])
-
-    if not project_id.isdigit():
-        print("Not allowed to start tracker for special project {name}".format(name=_project_name(data, project_id)))
-        sys.exit(23)
-
-    # Check if there is an active tracker
-    if data["tracking"]["active"]:
-        try:
-            since = data["tracking"]["started"]
-            tracking_id = data["tracking"]["project"]
-            _, hf, hhmm = _time_diff(since, _timestamp())
-            print("Tracker already started for project {name}".format(name=_project_name(data, tracking_id)))
-            sys.exit(21)
-        except Exception as e:
-            # We have an active tracker but it cannot be read.
-            # This might happen if this tracker refers to a non-existing
-            # project ID. Reset tracking settings and continue.
-            print("Stopped faulty tracker marked as active: {}".format(e))
-            data["tracking"]["active"] = False
-            data["tracking"]["project"] = None
-            data["tracking"]["started"] = None
-
-    # Check if project ID exists
-    if project_id not in data.get("projects", {}):
-        print("Project {cb}{pid}{ce} not found".format(cb=bcolors.YELLOW, pid=project_id, ce=bcolors.END))
-        sys.exit(12)
-
-    data["tracking"]["active"] = True
-    data["tracking"]["project"] = project_id
-    data["tracking"]["started"] = _timestamp()
-
-    msg = "Tracker started for project {name}".format(name=_project_name(data, project_id))
-    print(msg)
-    save(data, msg)
-
-
-def stop_tracking():
-    """Stop a running tracker.
-
-    No need to specify a project id (will be ignored). If no active tracker
-    is found, an error is printed to the console.
-    """
-    data = load()
-    if not data["tracking"]["active"]:
-        print("No active tracker")
-        sys.exit(22)
-
-    try:
-        project_id = data["tracking"]["project"]
-
-        started = data["tracking"]["started"]
-        stopped = _timestamp()
-        diff, hf, hhmm = _time_diff(started, stopped)
-
-        comment = data["tracking"]["comment"]
-
-        # add tuple to history
-        history = data["projects"][project_id]["history"]
-        history.append( (started, stopped, comment) )
-        data["projects"][project_id]["history"] = history
-
-        msg = "Tracker stopped for project {name} after {duration} ({hf:1.2f} hours)".format(name=_project_name(data, project_id), duration=hhmm, hf=hf)
-
-        if comment:
-            msg += ": \"{c}\"".format(c = comment)
-
-    except Exception as e:
-        # We have to deal with an entry we cannot read (and parse) correctly.
-        # This might happen if the tracker refers to a non-existing project
-        # ID. We should simply deactivate the tracker.
-        msg = "Tracker stopped but an error occurred: {}".format(e)
-
-    # Save the project_id as last_project (if it is a normal project)
-    if project_id.isdigit():
-        data["meta"]["last_project"] = project_id
-
-    # reset tracking settings
-    data["tracking"]["active"] = False
-    data["tracking"]["project"] = None
-    data["tracking"]["started"] = None
-    data["tracking"]["comment"] = None
-
-    print(msg)
-    save(data, msg)
-
-
-def cancel_tracking():
-    """Cancel a tracker: Stop it and dismiss the tracked time.
-
-    Stop the tracker, dismiss the time it has tracked and
-    reset values in the tracking section of the data file.
-    """
-    data = load()
-    if not data["tracking"]["active"]:
-        print("No active tracker")
-        sys.exit(22)
-
-    try:
-        project_id = data["tracking"]["project"]
-        msg = "Tracker cancelled for project {name}".format(name = _project_name(data, project_id))
-
-    except Exception as e:
-        # We have to deal with an entry we cannot read (and parse) correctly.
-        # This might happen if the tracker refers to a non-existing project
-        # ID. We should simply deactivate the tracker.
-        msg = "Tracker cancelled but an error occurred: {}".format(e)
-
-    # Save the project_id as last_project (if it is a normal project)
-    if project_id.isdigit():
-        data["meta"]["last_project"] = project_id
-
-    # reset tracking settings
-    data["tracking"]["active"] = False
-    data["tracking"]["project"] = None
-    data["tracking"]["started"] = None
-    data["tracking"]["comment"] = None
-
-    print(msg)
-    save(data, msg)
-
-
-def switch_tracking():
-    """Switch a tracker by stopping the active tracker and starting a new one.
-
-    This function is basically an alias of "tt stop && tt start <project>".
-    """
-    # data = load()
-    # if not data["tracking"]["active"]:
-    #     print("No active tracker")
-    #     sys.exit(22)
-
-    if len(sys.argv) < 3:
-        print("You must specify a project id")
-        list_projects()
-        sys.exit(20)
-
-    stop_tracking()
-    start_tracking()
-
-
-def change_tracking():
-    """Assign active tracker to new project.
-
-    This function updates the project an already active tracker is tracking
-    time in. It allows to reassign a tracker that has been started in a wrong
-    project.
-    """
-    if len(sys.argv) < 3:
-        print("You must specify a project id")
-        list_projects()
-        sys.exit(20)
-
-    data = load()
-    project_id = _get_project_id(data, sys.argv[2])
-
-    if not data["tracking"]["active"]:
-        print("No active tracker")
-        sys.exit(22)
-
-    # Change the project ID
-    data["tracking"]["project"] = project_id
-
-    msg = "Tracker changed to project {name}".format(name = _project_name(data, project_id))
-    print(msg)
-    save(data, msg)
-
-
-def reset_tracking():
-    """Reset start point to now() of an active tracker.
-
-    This will reset the start of the tracker to the current time and
-    basically resets the tracker.
-
-    Would be the same like "tt cancel && tt start <project>".
-    """
-    data = load()
-    if not data["tracking"]["active"]:
-        print("No active tracker")
-        sys.exit(22)
-
-    project_id = data["tracking"]["project"]
-
-    # Reset tracker
-    data["tracking"]["started"] = _timestamp()
-
-    msg = "Tracker resetted for project {name}".format(name=_project_name(data, project_id))
-    print(msg)
-    save(data, msg)
-
-
-def pause_add(arguments):
-    """
-    """
-    #print("Add pause arguments: {}".format(arguments))
-
-    if len(arguments) < 3:
-        print("""You must specify exactly 3 arguments:
-                30[-50]                 pause period in minutes
-                                        (if only one number is specified a
-                                        pause with this exact duration is
-                                        added - if a second number is given
-                                        (after a minus "-") a pause period of a
-                                        random duration between the 2 numbers
-                                        will be added)
-                23                      project's number or name
-                2019-03-14T09:46:26     add pause to period that starts at
-                                        this point in time
-            """)
-        sys.exit(1)
-
-    # Get the duration
-    a_duration = arguments[0].split("-")
-
-    if len(a_duration) == 1:
-        if str(a_duration[0]).isdigit:
-            pause_minutes = int(a_duration[0])
-            import random
-            random.seed()
-            pause_seconds = random.randint(0,59)
-        else:
-            print("Duration must be of type integer, is {}".format(type(a_duration[0])))
-            sys.exit(2)
-
-    elif len(a_duration) == 2:
-        min_pause = a_duration[0]
-        max_pause = a_duration[1]
-
-        if not str(min_pause).isdigit():
-            print("Minimal pause time must be of type integer")
-            sys.exit(2)
-        if not str(max_pause).isdigit():
-            print("Maximum pause time must be of type integer")
-            sys.exit(2)
-
-        import random
-        random.seed()
-        pause_minutes = random.randint(int(min_pause), int(max_pause))
-        pause_seconds = random.randint(0, 59)
-
-    else:
-        print("""Pause duration must be either of type integer or a range
-        defined by 2 integers a and b in the form of a-b""")
-        sys.exit(2)
-
-    # Load data
-    data = load()
-
-    # Get the project
-    project_id = _get_project_id(data, arguments[1])
-    project_name = _get_project_name(data, project_id)
-    if not str(project_id).isdigit():
-        # Note that there is a project ID "p" specifying the pause project!
-        print("{} is a special project - you cannot add a pause".format(arguments[1]))
-        sys.exit(2)
-
-    # Get the start time stamp of the logged period
-    period_start = "T".join(arguments[2:])
-
-
-    #print("pause duration:  {}:{} minutes".format(pause_minutes, pause_seconds))
-    #print("project:         {}".format(_project_name(data, project_id)))
-    #print("logged period:   {}".format(period_start))
-
-
-    # Get the tracked periods of the particular project and find a period that
-    # starts with period_start
-    tracked_periods = data["projects"][project_id]["history"]
-    try:
-        # First try to get a list of all timestamps that would match
-        # the given period timestamp
-        recorded_timestamps = [s[0] for s in tracked_periods if s[0].startswith(period_start)]
-        #print("Found {} possible timestamps: {}".format(
-        #    len(recorded_timestamps),
-        #    recorded_timestamps,
-        #    ))
-
-        if len(recorded_timestamps) == 0:
-            print("Could not find time period")
-            sys.exit(0)
-        elif len(recorded_timestamps) > 1:
-            print("Ambiguous time period, found {} possible time stamps:\n{}".format(
-                len(recorded_timestamps),
-                "\n".join(recorded_timestamps),
-                ))
-            sys.exit(0)
-        else:
-            period_start = recorded_timestamps[0]
-        pos_history = [s[0] for s in tracked_periods].index(period_start)
-    except Exception as e:
-        print("Could not find a period starting at {} for project {}".format(
-            period_start,
-            _project_name(data, project_id)
-            ))
-        return
-
-    #print("Found searched period {} at position {}".format(
-    #    period_start,
-    #    pos_history,
-    #    ))
-
-    # We have found the period we are looking for
-    # We need to split this period into 2 periods and create a new pause
-    # period!
-    period = tracked_periods[pos_history]
-    #print("Original period: {}".format(period))
-
-    original_start = datetime.datetime.strptime(period[0], dateformat)
-    original_end = datetime.datetime.strptime(period[1], dateformat)
-    original_duration = original_end - original_start
-
-    # We divide the period exactly in the middle
-    pause_time = original_duration / 2
-
-
-    # Create the missing time stamps
-    first_start = original_start
-    first_end = original_start + pause_time
-    second_start = first_end + datetime.timedelta(minutes = pause_minutes, seconds = pause_seconds)
-    second_end = second_start + pause_time
-
-    first_period = [
-            datetime.datetime.strftime(first_start, dateformat),
-            datetime.datetime.strftime(first_end, dateformat),
-            None
-            ]
-    second_period = [
-            datetime.datetime.strftime(second_start, dateformat),
-            datetime.datetime.strftime(second_end, dateformat),
-            None
-            ]
-    pause_period = [
-            datetime.datetime.strftime(first_end, dateformat),
-            datetime.datetime.strftime(second_start, dateformat),
-            None
-            ]
-
-    #print("First period:    {}".format(first_period))
-    #print("Pause period:    {}".format(pause_period))
-    #print("Second period:   {}".format(second_period))
-
-    # Before we start to modify the project's history
-    # we need to find the right spot in the pause project
-    if data["config"]["log_pause_times"]:
-        if "p" not in data["projects"]:
-            print("No pause project")
-            sys.exit(1)
-
-        pause_history = data["projects"]["p"].get("history", [])
-
-        #print("{} pause entries".format(len(pause_history)))
-        pos_pause = 0
-        for p in pause_history:
-            if datetime.datetime.strptime(p[0], dateformat) <= first_end:
-                pos_pause += 1
-            else:
-                break
-
-        #print("Insert new pause period at position {}".format(pos_pause))
-
-
-    # Now we modify the histories
-
-    # Modify the project's history
-    # Delete the original period ...
-    del(tracked_periods[pos_history])
-    # ... and insert the 2 new periods
-    tracked_periods.insert(pos_history, first_period)
-    tracked_periods.insert(pos_history + 1, second_period)
-
-    # Add the new pause period to the pause history
-    if data["config"]["log_pause_times"]:
-        pause_history.insert(pos_pause, pause_period)
-
-
-    # Save the data to the data structure
-    data["projects"][project_id]["history"] = tracked_periods
-    if data["config"]["log_pause_times"]:
-        data["projects"]["p"]["history"] = pause_history
-
-    # Finally, save the data structure back to disk
-    # Provide a message for the user to let him know what's going on
-    msg = "Added pause of {m}:{s} minutes in project {p} at {ps}".format(
-            m = pause_minutes,
-            s = pause_seconds,
-            p = _project_name(data, project_id),
-            ps = pause_period[0],
-            )
-
-    print(msg)
-    save(data, msg=msg)
-
-def pause_tracking():
-    """Pauses a tracker.
-
-    This function only works if tracking pause times is enabled in the local
-    configuration. Otherwise this function will exit with an error code.
-    If activated the current tracker will be stopped and the tracker of the
-    special pause project will be started.
-
-    The opposite of this function is resume_tracking().
-    """
-    if len(sys.argv) >= 3:
-        if sys.argv[2].lower() == "enable":
-            enable_pause()
-        elif sys.argv[2].lower() == "disable":
-            disable_pause()
-        elif sys.argv[2].lower() == "add":
-            pause_add(sys.argv[3:])
-        else:
-            print("Unsupported argument(s): {}".format(" ".join(sys.argv[2:])))
-        sys.exit(0)
-
-    data = load()
-
-    if not data["tracking"]["active"]:
-        print("No active tracker")
-        sys.exit(22)
-
-    if not data["config"]["log_pause_times"]:
-        print("Disabled in local configuration - try \"tt stop\" instead")
-        sys.exit(42)
-
-    try:
-        # Stop the running "normal" tracker
-        project_id = data["tracking"]["project"]
-
-        if project_id == 'p':
-            print("Already paused")
-            sys.exit(24)
-
-        started = data["tracking"]["started"]
-        stopped = _timestamp()
-        diff, hf, hhmm = _time_diff(started, stopped)
-
-        comment = data["tracking"]["comment"]
-
-        # add tuple to history
-        history = data["projects"][project_id]["history"]
-        history.append( (started, stopped, comment) )
-        data["projects"][project_id]["history"] = history
-
-        # Start the pause tracker
-        # project_id = data["meta"]["last_project"]
-        data["tracking"]["active"] = True
-        data["tracking"]["project"] = 'p'
-        data["tracking"]["started"] = _timestamp()
-        data["tracking"]["comment"] = None
-
-        msg = "Paused tracker for project {name} after {duration} ({hf:1.2f} hours)".format(name=_project_name(data, project_id), duration=hhmm, hf=hf)
-
-        if comment:
-            msg += ": \"{c}\"".format(c = comment)
-
-        # Save the project_id as last_project
-        data["meta"]["last_project"] = project_id
-
-        print(msg)
-
-    except Exception as e:
-        # We have to deal with an entry we cannot read (and parse) correctly.
-        # This might happen if the tracker refers to a non-existing project
-        # ID. We should simply deactivate the tracker.
-        msg = "Error occurred while trying to pause tracker: {}".format(e)
-        print(msg)
-
-    save(data, msg)
-
-
-def resume_tracking():
-    """Resume a tracker.
-
-    This function does work even if tracking of pause times is disabled.
-    However, if tt is in pause mode this function will stop the tracker
-    of the pause project and start the tracker of the project that has
-    been paused. It's ID is saved as last_project in the meta section
-    of the data file.
-
-    If there is no running (pause) tracker this function will start a
-    new timer for the project id saved as last_project in the meta
-    section of the data file.
-    """
-    data = load()
-
-    # If resume is called and not tracker is active, we will start a
-    # new tracker for the last project used
-    if not data["tracking"]["active"]:
-        start_tracking(data["meta"]["last_project"])
-        sys.exit(0)
-
-    try:
-        project_id = data["tracking"]["project"]
-
-        if project_id != 'p':
-            print("No pause tracker")
-            sys.exit(22)
-
-        started = data["tracking"]["started"]
-        stopped = _timestamp()
-        diff, hf, hhmm = _time_diff(started, stopped)
-
-        comment = data["tracking"]["comment"]
-
-        # add tuple to history
-        history = data["projects"]['p']["history"]
-        history.append( (started, stopped, comment) )
-        data["projects"]['p']["history"] = history
-
-        # Resume old tracker
-        project_id = data["meta"]["last_project"]
-        data["tracking"]["active"] = True
-        data["tracking"]["project"] = project_id
-        data["tracking"]["started"] = _timestamp()
-        data["tracking"]["comment"] = None
-
-        msg = "Resumed tracker for project {name} after pause of {duration} ({hf:1.2f} hours)".format(name=_project_name(data, project_id), duration=hhmm, hf=hf)
-
-        if comment:
-            msg += ": \"{c}\"".format(c = comment)
-
-        print(msg)
-
-    except Exception as e:
-        # We have to deal with an entry we cannot read (and parse) correctly.
-        # This might happen if the tracker refers to a non-existing project
-        # ID. We should simply deactivate the tracker.
-        msg = "Error occurred while trying to pause tracker: {}".format(e)
-        print(msg)
-
-    save(data, msg)
-
-
-def add_comment():
-    """Switch a tracker by stopping the active tracker and starting a new one.
-
-    This function is basically an alias of "tt stop && tt start <project>".
-    """
-    # data = load()
-    # if not data["tracking"]["active"]:
-    #     print("No active tracker")
-    #     sys.exit(22)
-
-    data = load()
-
-    if not data["tracking"]["active"]:
-        print("No active tracker")
-        sys.exit(22)
-
-    if len(sys.argv) < 3:
-        print("You must provide (at least one word as) a comment")
-
-    comment = " ".join(sys.argv[2:]).strip()
-
-    project_id = data["tracking"]["project"]
-    data["tracking"]["comment"] = comment
-
-    msg = "Added comment to project {name}: {comment}".format(name=_project_name(data, project_id), comment = comment)
-    save(data, msg)
-    print(msg)
-
-
-
-#############################################################################
-### Output
-#############################################################################
-
-def show(limit = 10):
-    """Show the recorded times.
-
-    You can specify a project ID to show only the times for this particular
-    project. If you do not specify a particular project, a list of all
-    recorded times will be printed to the console in the following format:
-      1   LRZ
-              2017-07-31      07:53 - 16:58      09:05  (9.08 hours)
-              2017-08-07      07:15 - 15:22      08:07  (8.12 hours)
-              2017-08-10      07:56 - 11:00      03:04  (3.07 hours)
-                              11:01 - 16:46      05:45  (5.76 hours)
-
-    If limit is specifed, only the last limit + 1 log entries are displayed
-    when no project ID is given (i.e. in the overview page). If a project
-    ID is given, this limit will be ignored because we assume that the user
-    wants to see every detail of the particular project.
-
-    A running tracker will displayed independently from the limit.
-    limit specifies the number of "finished" log entries to display.
-
-    The special pause project will only be displayed if tracking pause
-    times is enabled in the local configuration.
-
-    :param limit:   Number of entries to max. display per project
-    :type limit:    int
-    """
-    data = load()
-    project_ids = list() # list of project ids to display
-    # first = True
-    detailed_view = False
-
-    if len(sys.argv) < 3:
-        # no project ID given, get list of all available project IDs
-        project_ids = sorted(list(data["projects"].keys()))
-    elif len(sys.argv) >= 3:
-        # project ID given, use it
-        project_ids = sys.argv[2:]
-        # project IDs are given, ignoring the limit
-        limit = 0
-        detailed_view = True
-
-    running_tracker = False
-    try:
-        running_tracker = data["tracking"]["active"]
-        running_project = data["tracking"]["project"]
-        running_since = data["tracking"]["started"]
-        running_comment = data["tracking"]["comment"]
-        running_since_day, running_since_time = _to_day_and_time(running_since)
-    except:
-        # in case of any error, set running_tracker to False
-        running_tracker = False
-
-    for raw_project_id in project_ids:
-        project_id = _get_project_id(data, raw_project_id)
-
-        # Do not display pause project if pause times should not
-        # be logged
-        if project_id == 'p' and not data.get("config", {}).get("log_pause_times", False):
-            continue
-
-        if project_id is None:
-            # could not look up project's ID
-            # inform user and continue with next ID
-            print("Project {cb}{pid}{ce} not found".format(cb=bcolors.YELLOW, pid=raw_project_id, ce=bcolors.END))
-            continue
-
-        try:
-            project_name = data["projects"][project_id]["name"]
-            history = data["projects"][project_id]["history"]
-        except KeyError as e:
-            # Key (project_id) not found
-            # continue with next loop run
-            continue
-
-        # Print the project's name
-        if project_id.isdigit():
-            print("    {cb}{i:>3}{ce}   {n}".format(cb=bcolors.YELLOW, i=project_id, ce=bcolors.END, n=project_name))
-        else:
-            print("    {cb}{i:>3}{ce}   {n}".format(cb=bcolors.BLUE, i=project_id, ce=bcolors.END, n=project_name))
-
-        # print the history
-        if len(history) == 0:
-            if not running_tracker or running_project != project_id:
-                # Print only if there is no currently active tracker
-                # for this project
-                print("              No entries")
-
-        old_day = ""
-        total = 0.0
-        day_total = 0.0
-
-        if limit and limit < len(history):
-            history_to_display = history[(len(history) - limit):]
-            skipped = len(history) - limit
-            if skipped > 0:
-                if skipped == 1:
-                    txt = "1 more entry"
-                else:
-                    txt = "{nt} more entries".format(nt = skipped)
-
-                print("              ... {t} - use \"{bin} {cmd} {pid}\" to display complete history".format(t=txt, bin=my_name, cmd=sys.argv[1], pid=project_id))
-        else:
-            history_to_display = history
-
-        for item in sorted(history_to_display):
-            started, stopped, comment = item
-            secs, hf, hhmm = _time_diff(started, stopped)
-            total = total + hf
-            day, time_started = _to_day_and_time(started)
-            _, time_stopped = _to_day_and_time(stopped)
-            str_day = "{day:16}".format(day=day)
-            if day != old_day:
-                day_total = hf
-                str_day_total = ""
-            else:
-                str_day = " "*16
-                day_total = day_total + hf
-                str_day_total = "{space}{dt:1.2f} hours total".format(space = " "*6, dt = day_total)
-
-            if not comment:
-                comment = ""
-            else:
-                # str_day_total = " "*16 + " "*6
-                str_day_total += " "*(22 - len(str_day_total))
-                comment = "{color}{comment}{end}".format(color = bcolors.CYAN, comment = comment, end = bcolors.END)
-
-            print("              {sd}{started:5} - {stopped:11}{hhmm:7}({hf:1.2f} hours){sdt}      {c}".format(sd=str_day, started=time_started, stopped=time_stopped, hhmm=hhmm, hf=hf, sdt = str_day_total, c = comment))
-            old_day = day
-
-        if running_tracker and running_project == project_id:
-            # TODO: Cleanup this stuff
-            #started = data["tracking"]["started"]
-            day, time_started = _to_day_and_time(running_since)
-            time_stopped = ""
-            _, hf, hhmm = _time_diff(running_since, _timestamp())
-            total = total + hf
-            str_day = "{day:16}".format(day=running_since_day)
-            #
-            str_day_total = "{space}tracking".format(space = " "*6)
-
-            if running_since_day == old_day:
-                str_day = " "*16
-                #
-                day_total = day_total + hf
-                str_day_total = "{space}{dt:1.2f} hours total (tracking)".format(space = " "*6, dt = day_total)
-
-            if not running_comment:
-                running_comment = ""
-            else:
-                running_comment = "{color}{comment}{end}".format(color = bcolors.CYAN, comment = running_comment, end = bcolors.END)
-
-
-            #print("              {sd}{started:5} - {stopped:11}{hhmm:7}({hf:1.2f} hours)      tracking              {c}".format(sd=str_day, started=running_since_time, stopped=time_stopped, hhmm=hhmm, hf=hf, c = running_comment))
-            #
-            print("              {sd}{started:5} - {stopped:11}{hhmm:7}({hf:1.2f} hours){sdt}      {c}".format(sd=str_day, started=time_started, stopped=time_stopped, hhmm=hhmm, hf=hf, sdt = str_day_total, c = running_comment))
-
-
-        if detailed_view:
-            print("              Total time tracked: {hf:9.2f} hours".format(project=_project_name(data, project_id=project_id), hf=total))
-
-
-def csv(table = False):
-    """Outputs the tracked time(s) of a particular project in a format that can be
-    easily pasted to our "Zeiterfassungsbogen".
-
-    :param table:   Print a pretty table instead of boring comma-separated values
-    :type table:    bool
-    """
-    data = load()
-    project_ids = list() # list of project ids to display
-
-    # We only support to display a single project
-    # to be able to keep the output clean and easily usable
-    # to be automatically fed to another application for further
-    # utilization
-
-    if len(sys.argv) != 3:
-        print("You must specify exactly one project to display")
-        sys.exit(0)
-
-    raw_project_id = sys.argv[2]
-    project_id = _get_project_id(data, raw_project_id)
-
-    try:
-        project_name = data["projects"][project_id]["name"]
-        history = data["projects"][project_id]["history"]
-    except KeyError as e:
-        # Key (project_id) not found
-        print("Project {cb}{pid}{ce} not found".format(cb=bcolors.YELLOW, pid=raw_project_id, ce=bcolors.END))
-        return
-
-    dict_to_print = {}
-    # { "YYYY-MM-DD": {
-    #       "day_total": float,
-    #       "entries": [str],
-    #   }
-    # }
-
-    for item in sorted(history):
-        started, stopped, comment = item
-        secs, hf, hhmm = _time_diff(started, stopped)
-        day, time_started = _to_day_and_time(started)
-        _, time_stopped = _to_day_and_time(stopped)
-        entries_to_print = []
-
-        # Get entries for particular day
-        day_data = dict_to_print.get(day, {})
-        day_entries = day_data.get("entries", [])
-        day_total = day_data.get("day_total", 0.0)
-
-        day_total = day_total + hf
-        o_started = datetime.datetime.strptime(started, dateformat)
-        o_stopped = datetime.datetime.strptime(stopped, dateformat)
-        s_started = datetime.datetime.strftime(o_started, "%H:%M")
-        s_stopped = datetime.datetime.strftime(o_stopped, "%H:%M")
-
-        day_entries.append("{sdate} - {edate}".format(
-            sdate = s_started,
-            edate = s_stopped,
-            ))
-
-        day_data["day_total"] = day_total
-        day_data["entries"] = day_entries
-        dict_to_print[day] = day_data
-
-    # Now we need to print it
-    delimiter = ";"
-
-    if table:
-        # Use PrettyTable to create a pretty table
-        try:
-            from prettytable import PrettyTable
-            t = PrettyTable()
-
-            t.field_names = ["Day", "Times", "Hours"]
-            t.align["Day"] = "l"
-            t.align["Times"] = "l"
-            t.align["Hours"] = "r"
-
-        except Exception as e:
-            print("Could not import module prettytable")
-            sys.exit(6)
-
-    for day in sorted(dict_to_print.keys()):
-        day_data = dict_to_print[day]
-        entries = ", ".join(day_data["entries"])
-        f_day_total = "{t:.2f}".format(
-                t = day_data["day_total"],
-                )
-        day_total = str(f_day_total).replace(".", ",")
-
-        if table:
-            t.add_row([day, entries, day_total])
-        else:
-            print("\"{day}\"{d}\"{e}\"{d}\"{t}\"".format(
-                d = delimiter,
-                e = entries,
-                t = day_total,
-                day = day,
-                ))
-
-    if table:
-        print(t)
-
-
-#############################################################################
-### Entry point
-#############################################################################
-
-"""Main function/entry point when starting the program.
-
-Parses the arguments and calls the appropriate functions.
-"""
-
-if len(sys.argv) == 2 and sys.argv[1].lower() == "init":
-    init()
-    sys.exit(0)
-elif len(sys.argv) <= 1:
-    status()
-    sys.exit(0)
-
-cmd = parse_command(sys.argv[1].lower())
-
-if cmd == "status":
-    status()
-elif cmd == "log":
-    print_log()
-elif cmd == "cleanup":
-    cleanup()
-
-elif cmd == "aliases":
-    print_aliases()
-elif cmd == "alias":
-    alias()
-elif cmd == "unalias":
-    unalias()
-
-elif cmd == "list":
-    list_projects()
-elif cmd == "add":
-    add_project()
-elif cmd == "delete":
-    delete_project()
-elif cmd == "rename":
-    rename_project()
-elif cmd == "show":
-    show()
-elif cmd == "csv":
-    csv()
-elif cmd == "tab":
-    csv(table = True)
-
-elif cmd == "pause":
-    pause_tracking()
-elif cmd == "resume":
-    resume_tracking()
-elif cmd == "start":
-    start_tracking()
-elif cmd == "stop":
-    stop_tracking()
-elif cmd == "switch":
-    switch_tracking()
-elif cmd == "change":
-    change_tracking()
-elif cmd == "cancel":
-    cancel_tracking()
-elif cmd == "reset":
-    reset_tracking()
-elif cmd == "comment":
-    add_comment()
-
-else:
-    usage()
+if __name__ == '__main__':
+    import sys
+    tt = TymeTracker(sys.argv)
 
 # EOF
