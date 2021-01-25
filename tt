@@ -1969,7 +1969,6 @@ class bcolors:
 
 
 if __name__ == '__main__':
-    import sys
     tt = TymeTracker(sys.argv)
 
 # EOF
