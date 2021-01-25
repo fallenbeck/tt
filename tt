@@ -1791,7 +1791,7 @@ def show(limit = 10):
 
             #print("              {sd}{started:5} - {stopped:11}{hhmm:7}({hf:1.2f} hours)      tracking              {c}".format(sd=str_day, started=running_since_time, stopped=time_stopped, hhmm=hhmm, hf=hf, c = running_comment))
             #
-            print("              {sd}{started:5} - {stopped:11}{hhmm:7}({hf:1.2f} hours){sdt}      {c}".format(sd=str_day, started=time_started, stopped=time_stopped, hhmm=hhmm, hf=hf, sdt = str_day_total, c = comment))
+            print("              {sd}{started:5} - {stopped:11}{hhmm:7}({hf:1.2f} hours){sdt}      {c}".format(sd=str_day, started=time_started, stopped=time_stopped, hhmm=hhmm, hf=hf, sdt = str_day_total, c = running_comment))
 
 
         if detailed_view:
