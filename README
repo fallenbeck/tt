@@ -17,7 +17,7 @@ Installation
 ============
 I tried to keep tt as simple as possible. It has been written in Python 3 but
 does not have any external dependencies so far. This makes the installation
-easy as long as you have Python 3 (not 2!) installed on your machine:
+easy as long as you have Python 3.6 installed on your machine:
   1. Clone the project or download it as an archive and unpack it
   2. Move the tt file to some location existing in your PATH
      (or create a symlink)
@@ -189,7 +189,7 @@ tt tab does not work for me
 ---------------------------
 When printing the table I rely on Python's PrettyTable module. You can
 install PrettyTable using pip3:
-    pip3 install prettytable
+    python3 -m pip install prettytable
 
 
 
@@ -219,6 +219,7 @@ Code  Meaning
   31  Invalid command when trying to add alias
   32  Alias not found
   42  Disabled in local configuration
+  50  No comment given
 
 
 Contact
@@ -227,3 +228,4 @@ If you have any questions, please feel free to contact me using GitHub.
 If you have a great idea what I should build right into tt, let my know by
 opening a pull request.
 Don't hesitate to contact me. Really.
+
