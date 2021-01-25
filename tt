@@ -530,11 +530,10 @@ class TymeTracker:
             print(f"Initializing new data file {f}")
 
             # Initialize new data dict
-            # TODO: Initialize directly with file_version 5
             data = {
                     "meta": {
                         "last_id": 0,
-                        "file_version": 4,
+                        "file_version": 5,
                         "last_project": None,
                         },
                     "config": {
