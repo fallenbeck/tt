@@ -217,6 +217,58 @@ class TymeTracker:
         """
         return datetime.datetime.now().strftime(self.dateformat)
 
+    def _get_trackings(self,
+            data: dict,
+            project_id: str = None,
+            date_prefix: str = None,
+            ) -> dict:
+        """
+        """
+        result = {}
+        all_trackings = data.get("projects", {})
+
+        # First, gather the trackings for all projects
+        for pid, pdata in all_trackings.items():
+            result[pid] = pdata.get("history", [])
+
+        # Second, if project_id is not None, reduce the result to this
+        # project's trackings
+        if project_id is not None:
+            pid = self._get_project_id(data, project_id)
+            pids_to_delete = []
+            for existing_pid in result.keys():
+                if existing_pid != pid:
+                    pids_to_delete.append(existing_pid)
+
+            for ptd in pids_to_delete:
+                del(result[ptd])
+
+        # Third, if time should be limited to some particular prefix
+        # delete all trackings not started at this prefix
+        if date_prefix is not None:
+            new_result = {}
+            for pid, pdata in result.items():
+                new_result[pid] = [tracking for tracking in pdata if tracking[0].startswith(date_prefix)]
+            result = new_result
+
+        # Lastly, return the result
+        return result
+
+    def _convert_seconds_to_hf(self,
+            seconds: int,
+            ) -> float:
+        """
+        """
+        return float(seconds) / 3600
+
+    def _convert_seconds_to_hhmm(self,
+            seconds: int,
+            ) -> str:
+        """
+        """
+        hhmm = "{h:02}:{m:02}".format(h=int(seconds//3600), m=int((seconds//60)%60))
+        return hhmm
+
 
     def _time_diff(self,
             started: str,
@@ -233,8 +285,10 @@ class TymeTracker:
         b = datetime.datetime.strptime(stopped, self.dateformat)
         c = b - a
         seconds = c.total_seconds()
-        hour_frac = seconds / 3600
-        hhmm = "{h:02}:{m:02}".format(h=c.seconds//3600, m=(c.seconds//60)%60)
+        #hour_frac = seconds / 3600
+        #hhmm = "{h:02}:{m:02}".format(h=c.seconds//3600, m=(c.seconds//60)%60)
+        hour_frac = self._convert_seconds_to_hf(seconds)
+        hhmm = self._convert_seconds_to_hhmm(seconds)
 
         # return tuple
         return (seconds, hour_frac, hhmm)
@@ -602,13 +656,32 @@ class TymeTracker:
             since = data["tracking"]["started"]
             project_id = data["tracking"]["project"]
             comment = data["tracking"]["comment"]
-            _, hf, hhmm = self._time_diff(since, self._timestamp())
-            msg = f"Tracking time in project {self._project_name(data, project_id)} for {hhmm} ({hf:0.2f} hours)"
+            active_seconds, hf, hhmm = self._time_diff(since, self._timestamp())
 
+            msg = f"Currently tracking time in project {self._project_name(data, project_id)} for {hhmm} ({hf:0.2f} hours)"
             if comment:
                 msg += f": \"{comment}\""
-
             print(msg)
+
+
+            # Time tracked today in this particular project
+            today, _ = self._to_day_and_time(self._timestamp())
+            today_slots_in_project = self._get_trackings(data, project_id, today)
+            seconds = active_seconds
+            for tracking in today_slots_in_project.get(project_id, []):
+                start, stop, comment = tracking
+                s, _, _ = self._time_diff(start, stop)
+                seconds += s
+
+            hf = self._convert_seconds_to_hf(seconds)
+            hhmm = self._convert_seconds_to_hhmm(seconds)
+
+            print(f"Total time tracked today in project {self._project_name(data, project_id)} is {hhmm} ({hf:0.2f} hours)")
+
+
+
+
+
 
 
     def print_log(self,
