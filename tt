@@ -222,7 +222,40 @@ class TymeTracker:
             project_id: str = None,
             date_prefix: str = None,
             ) -> dict:
-        """
+        """Return the tracked time slots.
+
+        If neither project_id or date_prefix are given the returned dict
+        will contain all tracked times for all projects.
+
+        Specifying a project_id will limit the returned times to this
+        particular project.
+
+        Specifying a date_prefix will filter limit the returned times to
+        slots whose start times match the date_prefix.
+        A start time of a tracked slot looks like this:
+            2021-04-06T13:16:31
+        You you want only the trackings for a given day,
+        i.e. the 6th of April 2021, you can use the date_prefix "2021-04-06".
+        If you want the trackings for April 2021, you can use the date_prefix
+        "2021-04".
+        The function uses Python's built-in string-function .startswith() to
+        compare the date_prefix with the slots' start time.
+
+        The returned results dict contains the project ID(s) as key(s) and
+        the tracked times as values. Each value is a list of 3-tuples
+        representing (start_time, stop_time, comment).
+        Even if you limit the project_id the result have this project ID as
+        key and the corresponding tracked times (maybe filtered by  date_prefix)
+        as value.
+
+        :param data:        Data object representing the current state
+        :type data:         dict
+        :param project_id:  ID of project to get the tracked times for
+        :type project_id:   str or None
+        :param date_prefix: A date prefix used as filter to limit tracked times
+        :type date_prefix:  str or None
+        :return:            Dict with project IDs as key and list of tracked times as value
+        :rtype:             dict
         """
         result = {}
         all_trackings = data.get("projects", {})
@@ -255,20 +288,34 @@ class TymeTracker:
         return result
 
     def _convert_seconds_to_hf(self,
-            seconds: int,
+            seconds: float,
             ) -> float:
+        """Convert seconds to fractions of hours.
+
+        This function is used when displaying the tracked time in hours
+        format like 8,25 hours (which represents 29700 seconds).
+
+        :param seconds: Number of seconds
+        :type seconds:  float
+        :return:        Decimal number representing the hours
+        :rtype:         float
         """
-        """
-        return float(seconds) / 3600
+        return seconds / 3600
 
     def _convert_seconds_to_hhmm(self,
-            seconds: int,
+            seconds: float,
             ) -> str:
-        """
-        """
-        hhmm = "{h:02}:{m:02}".format(h=int(seconds//3600), m=int((seconds//60)%60))
-        return hhmm
+        """Convert seconds to hh:mm format.
 
+        This function is used when displaying the tracked time in hhmm format
+        like 08:15 (which represents 29700 seconds).
+
+        :param seconds: Number of seconds
+        :type seconds:  float
+        :return:        String in hh:mm format
+        :rtype:         str
+        """
+        return "{h:02.0f}:{m:02.0f}".format(h=seconds//3600, m=(seconds//60)%60)
 
     def _time_diff(self,
             started: str,
@@ -280,13 +327,18 @@ class TymeTracker:
             seconds as float (e.g., 23132.0 seconds)
             hour_frac as float (e.g., 0.3455353 hours)
             hhmm as string (e.g., 01:23)
+
+        :param started: Start time
+        :type started:  str
+        :param stopped: Stop time
+        :type stopped:  str
+        :return:        3-tuple with (seconds, hf, hhmm)
+        :rtype:         (float, float, str)
         """
         a = datetime.datetime.strptime(started, self.dateformat)
         b = datetime.datetime.strptime(stopped, self.dateformat)
         c = b - a
         seconds = c.total_seconds()
-        #hour_frac = seconds / 3600
-        #hhmm = "{h:02}:{m:02}".format(h=c.seconds//3600, m=(c.seconds//60)%60)
         hour_frac = self._convert_seconds_to_hf(seconds)
         hhmm = self._convert_seconds_to_hhmm(seconds)
 
@@ -302,6 +354,11 @@ class TymeTracker:
         Given a timestamp, the day and the time will be returned as a 2-tuple with
         the day in format YYYY-mm-dd as first element and the time in format HH:MM
         as the second element of the tuple.
+
+        :param isodateformat:   Time to return in ISO format
+        :type isodateformat:    str
+        :return:                2-tuple with (day, time), i.e. ("2021-04-07", "10:04")
+        :rtype:                 (str, str)
         """
         day = datetime.datetime.strptime(isodateformat, self.dateformat).strftime('%Y-%m-%d')
         time = datetime.datetime.strptime(isodateformat, self.dateformat).strftime('%H:%M')
