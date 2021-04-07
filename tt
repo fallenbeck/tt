@@ -665,18 +665,21 @@ class TymeTracker:
 
 
             # Time tracked today in this particular project
+            # only if there is something additional to display
             today, _ = self._to_day_and_time(self._timestamp())
             today_slots_in_project = self._get_trackings(data, project_id, today)
-            seconds = active_seconds
-            for tracking in today_slots_in_project.get(project_id, []):
-                start, stop, comment = tracking
-                s, _, _ = self._time_diff(start, stop)
-                seconds += s
+            today_slots = today_slots_in_project.get(project_id, [])
+            if len(today_slots):
+                seconds = active_seconds
+                for tracking in today_slots:
+                    start, stop, comment = tracking
+                    s, _, _ = self._time_diff(start, stop)
+                    seconds += s
 
-            hf = self._convert_seconds_to_hf(seconds)
-            hhmm = self._convert_seconds_to_hhmm(seconds)
+                hf = self._convert_seconds_to_hf(seconds)
+                hhmm = self._convert_seconds_to_hhmm(seconds)
 
-            print(f"Total time tracked today in project {self._project_name(data, project_id)} is {hhmm} ({hf:0.2f} hours)")
+                print(f"Total time tracked today in project {self._project_name(data, project_id)} is {hhmm} ({hf:0.2f} hours)")
 
 
 
