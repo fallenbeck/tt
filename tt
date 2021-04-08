@@ -220,7 +220,7 @@ class TymeTracker:
     def _get_trackings(self,
             data: dict,
             project_id: str = None,
-            date_prefix: str = None,
+            date_prefix = None,
             ) -> dict:
         """Return the tracked time slots.
 
@@ -238,6 +238,7 @@ class TymeTracker:
         i.e. the 6th of April 2021, you can use the date_prefix "2021-04-06".
         If you want the trackings for April 2021, you can use the date_prefix
         "2021-04".
+        You can also define mulitple date_prefixes by providing a list of strs.
         The function uses Python's built-in string-function .startswith() to
         compare the date_prefix with the slots' start time.
 
@@ -252,8 +253,8 @@ class TymeTracker:
         :type data:         dict
         :param project_id:  ID of project to get the tracked times for
         :type project_id:   str or None
-        :param date_prefix: A date prefix used as filter to limit tracked times
-        :type date_prefix:  str or None
+        :param date_prefix: A (list of) date prefix(es) used as filter to limit tracked times
+        :type date_prefix:  str, list or None
         :return:            Dict with project IDs as key and list of tracked times as value
         :rtype:             dict
         """
@@ -279,12 +280,34 @@ class TymeTracker:
         # Third, if time should be limited to some particular prefix
         # delete all trackings not started at this prefix
         if date_prefix is not None:
+            # If date_prefix is of type str we create a list containig this
+            # str. We need a list since we will iterate over its elements
+            # a few lines below
+            if type(date_prefix) == str:
+                date_prefix = [date_prefix]
+
             new_result = {}
-            for pid, pdata in result.items():
-                new_result[pid] = [tracking for tracking in pdata if tracking[0].startswith(date_prefix)]
+            # TODO: Cleanup
+            for dp in date_prefix:
+                #print(f"{dp} {type(dp)}")
+                trackings = []
+                for pid, pdata in result.items():
+                    pid_trackings = new_result.get(pid, [])
+
+                    new_trackings = [tracking for tracking in pdata if tracking[0].startswith(dp)]
+                    for t in new_trackings:
+                        pid_trackings.append(t)
+
+                    new_result[pid] = pid_trackings
+
+                    #print([tracking[0] for tracking in pdata])
+
+                    #new_result[pid] = [tracking for tracking in pdata if tracking[0].startswith(dp)]
+                    #print(f"{new_result[pid]}")
             result = new_result
 
         # Lastly, return the result
+        #print(f"{result}")
         return result
 
     def _convert_seconds_to_hf(self,
@@ -876,15 +899,20 @@ class TymeTracker:
                     "pause disable": "Disable tracking of pause times",
                     "pause enable": "Enable tracking of pause times",
                     "resume": "Resume tracker from paused project or from last project used",
-                    "show": "Show tracked times for all projects",
-                    "show 23": "Show tracked times and some additional information for project 23",
-                    "csv 23": "Show tracked times as CSV",
-                    "tab 23": "Show tracked times in a pretty table format",
                     "switch 23": "Switch a tracker to a new project by stopping it and starting a new",
                     "change 23": "Chance project assigned to an active tracker",
                     "cancel": "Cancel active tracker and dismiss time",
                     "reset": "Reset time of active tracker",
                     "comment comment": "Add \"comment\" to the current active tracker",
+                    },
+                "Summarizing": {
+                    "DESC": "These commands display the time tracked in different ways.",
+                    "csv 23": "Show tracked times as CSV",
+                    "show": "Show tracked times for all projects",
+                    "show 23": "Show tracked times and some additional information for project 23",
+                    "tab 23": "Show tracked times in a pretty table format",
+                    "week": "Show a report of the time tracked in the current week",
+                    "week 23": "Show the time tracked for project 23 in the current week",
                     }
                 }
 
@@ -1982,6 +2010,129 @@ class TymeTracker:
 
 
     #############################################################################
+    ### Reports
+    #############################################################################
+
+    def week(self,
+            project_id: str = None,
+            ) -> None:
+        """Print the time tracked for the current week.
+
+        :param project_id:  Show only times for particular project
+        :type project_id:   str or None
+        """
+        self.weekly(project_id, num_weeks = 1)
+
+
+    def weekly(self,
+            project_id: str = None,
+            num_weeks: int = 10,
+            week_starts_sunday = False
+            ):
+        """Print  a weekly report of your tracked time
+
+        :param project_id:          ID of project
+        :type project_id:           str or None
+        :param num_weeks:           Number of weeks to display
+        :type num_weeks:            int
+        :param week_starts_sunday:  Set to True if week starts on Sunday (Monday otherwise)
+        :type week_starts_sunday:   bool
+        """
+
+        if project_id is None:
+            if len(sys.argv) >= 3:
+                project_id = sys.argv[2]
+            else:
+                print("You must provide a project ID.")
+                sys.exit(20)
+                # TODO: The sum of hours is calculated wrongly if we do not
+                #       limit it to a single project.
+                #       One Problem is that pause times, ... are added to that.
+                #       Somehow
+
+        data = self.load()
+
+        # Look up the project ID in the data dict (if name was given)
+        if project_id is not None:
+            project_id = self._get_project_id(data, project_id)
+
+        # First step is to get the date_prefix for the first day of the current
+        # week
+        # Get the first day of the week.
+        # Source: https://stackoverflow.com/questions/39441639/getting-the-date-of-the-first-day-of-the-week#comment113182133_61743379
+        # isoweekday() - Monday is 1 and Sunday is 7
+        # weekday() - Monday is 0 and Sunday is 6
+        if week_starts_sunday:
+            dt_first_day = datetime.datetime.today() - datetime.timedelta(days=datetime.datetime.today().isoweekday() % 7)
+        else:
+            dt_first_day = datetime.datetime.today()  - datetime.timedelta(days=datetime.datetime.today().weekday() % 7)
+
+        # We need to create a set of date_prefixes containing the dates of
+        # each of days for the particular week(s) we want to print.
+
+        # The numbering of the weeks is as follows:
+        # weeknum   times to display
+        # ---------+---------------------------------------------------------
+        #       1   current week
+        #       2   week before current week
+        #       3   week before week 2
+        #       4   week before week 3
+        # ...
+        # You got the idea.
+        weeks = []
+        for weeknum in range(num_weeks):
+            # We need to reset the datetime object representing the first day
+            # of the week.
+            # We only need to do that if the weeknum is greater than zero.
+            if weeknum:
+                dt_first_day = dt_first_day - datetime.timedelta(days = 7)
+
+            days_of_week = []
+            days_of_week = [dt_first_day.strftime("%Y-%m-%d")]
+
+            for other_day in range(6):
+                days_of_week.append((dt_first_day + datetime.timedelta(days = 1 + other_day)).strftime("%Y-%m-%d"))
+
+            weeks.append(days_of_week)
+
+        result = {}
+
+        for week in weeks:
+            first_day = week[0]
+            last_day = week[-1]
+            result_key = f"{first_day} - {last_day}"
+
+            trackings = self._get_trackings(
+                    data = data,
+                    project_id = project_id,
+                    date_prefix = week,
+                    )
+
+            for project, slots in trackings.items():
+                week_secs = 0.0
+                for s in slots:
+                    secs, _, _ = self._time_diff(s[0], s[1])
+                    week_secs += secs
+
+                # Store the data in the results dict for printing
+                project_dict = result.get(project_id, {})
+                project_dict[result_key] = week_secs
+                result[project_id] = project_dict
+
+
+        # Print the results
+        for pid, timeslots in result.items():
+            print(f"Project {self._project_name(data, project_id)}")
+
+            for week in sorted(timeslots.keys()):
+                hf = self._convert_seconds_to_hf(timeslots.get(week, 0))
+                print(f"    {week}: {hf:>9.2f} hours")
+
+
+
+
+
+    #############################################################################
     ### Entry point
     #############################################################################
 
@@ -2056,6 +2207,11 @@ class TymeTracker:
             self.reset_tracking()
         elif cmd == "comment":
             self.add_comment()
+
+        elif cmd == "week":
+            self.week()
+        elif cmd == "weekly":
+            self.weekly()
 
         else:
             self.usage()

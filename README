@@ -26,63 +26,70 @@ easy as long as you have Python 3.6 installed on your machine:
 
 Usage
 =====
- Generic commands
+Generic commands
      Commands to initialize tt and perform management tasks.
 
-     alias a command       Create or updates alias a for a particular command
-     aliases               Shows list of all defined aliases
-     cleanup               Cleanup and reorganize data file
-     init                  Initialize new data file
-     log                   Show activity log
-     log disable           Disable activity log
-     log enable            Enable activity log
-     status                Display tracker status information
-     unalias a             Remove alias a
+alias a command      Create or updates alias a for a particular command
+aliases              Shows list of all defined aliases
+cleanup              Cleanup and reorganize data file
+init                 Initialize new data file
+log                  Show activity log
+log disable          Disable activity log
+log enable           Enable activity log
+status               Display tracker status information
+unalias a            Remove alias a
 
 
- Projects
+Projects
      Before you can start a tracker you need to create a project to which this tracker is assigned. These commands allow you to add, delete and manage existing projects.
 
-     add project name      Add new project with name "project name"
-     delete 23             Delete project with id 23
-     list                  List projects and their ids
-     rename 23 new name    Rename project with ID 23 to "new name"
+add project name     Add new project with name "project name"
+delete 23            Delete project with id 23
+list                 List projects and their ids
+rename 23 new name   Rename project with ID 23 to "new name"
 
 
- Tracking
+Tracking
      These commands allow to start and stop trackers as well as displaying tracked times in existing projects.
 
-     cancel                Cancel active tracker and dismiss time
-     change 23             Chance project assigned to an active tracker
-     comment comment       Add "comment" to the current active tracker
-     csv 23                Show tracked times as CSV
-     pause                 Pause an active tracker
-     pause add 30-50 23 2019-03-14T09:46:26  Add a pause of a random duration between 30 and 50 minutes to the project 23's time period started on 2019-03-14 09:46:26
-     pause disable         Disable tracking of pause times
-     pause enable          Enable tracking of pause times
-     reset                 Reset time of active tracker
-     resume                Resume tracker from paused project or from last project used
-     show                  Show tracked times for all projects
-     show 23               Show tracked times and some additional information for project 23
-     start 23              Start time tracking for project id 23
-     stop                  Stop active time tracking
-     switch 23             Switch a tracker to a new project by stopping it and starting a new
-     tab 23                Show tracked times in a pretty table format
+cancel               Cancel active tracker and dismiss time
+change 23            Chance project assigned to an active tracker
+comment comment      Add "comment" to the current active tracker
+pause                Pause an active tracker
+pause add 30-50 23 2019-03-14T09:46:26 Add a pause of a random duration between 30 and 50 minutes to the project 23's time period started on 2019-03-14 09:46:26
+pause disable        Disable tracking of pause times
+pause enable         Enable tracking of pause times
+reset                Reset time of active tracker
+resume               Resume tracker from paused project or from last project used
+start 23             Start time tracking for project id 23
+stop                 Stop active time tracking
+switch 23            Switch a tracker to a new project by stopping it and starting a new
 
 
- Aliases
+Summarizing
+     These commands display the time tracked in different ways.
+
+csv 23               Show tracked times as CSV
+show                 Show tracked times for all projects
+show 23              Show tracked times and some additional information for project 23
+tab 23               Show tracked times in a pretty table format
+week                 Show a report of the time tracked in the current week
+week 23              Show the time tracked for project 23 in the current week
+
+
+Aliases
      Aliases defined in the data file
 
-     a                     add
-     c                     comment
-     ch                    change
-     d                     delete
-     l                     list
-     p                     pause
-     r                     resume
-     s                     show
-     st                    status
-     sw                    switch
+a                    add
+c                    comment
+ch                   change
+d                    delete
+l                    list
+p                    pause
+r                    resume
+s                    show
+st                   status
+sw                   switch
 
 
 Examples
