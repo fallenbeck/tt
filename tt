@@ -1570,7 +1570,7 @@ class TymeTracker:
 
         # Finally, save the data structure back to disk
         # Provide a message for the user to let him know what's going on
-        msg = f"Added pause of {pause_minutes}:{pause_seconds} minutes in project {self._project_name(data, project_id)} at {pause_period[0]}"
+        msg = f"Added pause of {pause_minutes:02d}:{pause_seconds:02d} minutes in project {self._project_name(data, project_id)} at {pause_period[0]}"
 
         print(msg)
         self.save(data, msg=msg)
