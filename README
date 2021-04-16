@@ -26,6 +26,10 @@ easy as long as you have Python 3.6 installed on your machine:
 
 Usage
 =====
+To display a help message you can call "tt help".
+It will provide you with an overview of the supported commands and how to use
+tt to track your times in a single project or different projects.
+
 Generic commands
      Commands to initialize tt and perform management tasks.
 
@@ -92,23 +96,27 @@ st                   status
 sw                   switch
 
 
+
 Examples
 --------
 The following example should give you an impression of the default workflow.
-First, a project named work will be created. Then a tracker will be started,
+
+The first 2 steps necessary before you are able to track your time is to
+init a new data file and to create a least one project to track times for.
+We will add a project called "work". Then a tracker will be started,
 pause, resumed und finally stopped - by an alias that has been created.
 This example shows also the reporting output for the tracked project time.
 
   % tt add work
-  Created project 4: "work"
+  Created project 1: "work"
   % tt start work
-  Tracker started for project 4: "work"
+  Tracker started for project 1: "work"
   % tt
-  Tracking time in project 4: "work" for 00:01 (0.02 hours)
+  Tracking time in project 1: "work" for 00:01 (0.02 hours)
   % tt pause
-  Paused tracker for project 4: "work" after 00:01 (0.02 hours)
+  Paused tracker for project 1: "work" after 00:01 (0.02 hours)
   % tt resume
-  Resumed tracker for project 4: "work" after pause of 00:01 (0.03 hours)
+  Resumed tracker for project 1: "work" after pause of 00:01 (0.03 hours)
   % tt alias stopit stop
   Created alias stopit for command stop
   % tt aliases
@@ -124,7 +132,7 @@ This example shows also the reporting output for the tracked project time.
   stopit    stop
     sw    switch
   % tt stopit
-  Tracker stopped for project 4: "work" after 00:00 (0.01 hours)
+  Tracker stopped for project 1: "work" after 00:00 (0.01 hours)
   % tt show work
         4   work
                 2019-05-28      09:45 - 09:46      00:01  (0.02 hours)
