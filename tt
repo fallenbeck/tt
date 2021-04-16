@@ -287,9 +287,7 @@ class TymeTracker:
                 date_prefix = [date_prefix]
 
             new_result = {}
-            # TODO: Cleanup
             for dp in date_prefix:
-                #print(f"{dp} {type(dp)}")
                 trackings = []
                 for pid, pdata in result.items():
                     pid_trackings = new_result.get(pid, [])
@@ -300,14 +298,9 @@ class TymeTracker:
 
                     new_result[pid] = pid_trackings
 
-                    #print([tracking[0] for tracking in pdata])
-
-                    #new_result[pid] = [tracking for tracking in pdata if tracking[0].startswith(dp)]
-                    #print(f"{new_result[pid]}")
             result = new_result
 
         # Lastly, return the result
-        #print(f"{result}")
         return result
 
     def _convert_seconds_to_hf(self,
@@ -721,15 +714,6 @@ class TymeTracker:
         """
         data = self.load()
 
-        # number_of_projects = len(data["projects"])
-
-        # # If pause times should not be logged we need to hide the project
-        # # from the user
-        # if not data.get("config", {}).get("log_pause_times", False):
-        #     number_of_projects -= 1
-
-        # print("{} projects".format(number_of_projects))
-
         if not data["tracking"]["active"]:
             print("No active time tracking")
         else:
@@ -760,11 +744,6 @@ class TymeTracker:
                 hhmm = self._convert_seconds_to_hhmm(seconds)
 
                 print(f"Total time tracked today in project {self._project_name(data, project_id)} is {hhmm} ({hf:0.2f} hours)")
-
-
-
-
-
 
 
     def print_log(self,
@@ -1317,11 +1296,6 @@ class TymeTracker:
 
         This function is basically an alias of "tt stop && tt start <project>".
         """
-        # data = load()
-        # if not data["tracking"]["active"]:
-        #     print("No active tracker")
-        #     sys.exit(22)
-
         if len(sys.argv) < 3:
             print("You must specify a project id")
             list_projects()
@@ -1451,12 +1425,6 @@ class TymeTracker:
         # Get the start time stamp of the logged period
         period_start = "T".join(arguments[2:])
 
-
-        #print("pause duration:  {}:{} minutes".format(pause_minutes, pause_seconds))
-        #print("project:         {}".format(_project_name(data, project_id)))
-        #print("logged period:   {}".format(period_start))
-
-
         # Get the tracked periods of the particular project and find a period that
         # starts with period_start
         tracked_periods = data["projects"][project_id]["history"]
@@ -1464,10 +1432,6 @@ class TymeTracker:
             # First try to get a list of all timestamps that would match
             # the given period timestamp
             recorded_timestamps = [s[0] for s in tracked_periods if s[0].startswith(period_start)]
-            #print("Found {} possible timestamps: {}".format(
-            #    len(recorded_timestamps),
-            #    recorded_timestamps,
-            #    ))
 
             if len(recorded_timestamps) == 0:
                 print("Could not find time period")
@@ -1485,16 +1449,10 @@ class TymeTracker:
             print("Could not find a period starting at {period_start} for project {self._project_name(data, project_id)}")
             return
 
-        #print("Found searched period {} at position {}".format(
-        #    period_start,
-        #    pos_history,
-        #    ))
-
         # We have found the period we are looking for
         # We need to split this period into 2 periods and create a new pause
         # period!
         period = tracked_periods[pos_history]
-        #print("Original period: {}".format(period))
 
         original_start = datetime.datetime.strptime(period[0], self.dateformat)
         original_end = datetime.datetime.strptime(period[1], self.dateformat)
@@ -1525,10 +1483,6 @@ class TymeTracker:
                 None
                 ]
 
-        #print("First period:    {}".format(first_period))
-        #print("Pause period:    {}".format(pause_period))
-        #print("Second period:   {}".format(second_period))
-
         # Before we start to modify the project's history
         # we need to find the right spot in the pause project
         if data["config"]["log_pause_times"]:
@@ -1545,9 +1499,6 @@ class TymeTracker:
                     pos_pause += 1
                 else:
                     break
-
-            #print("Insert new pause period at position {}".format(pos_pause))
-
 
         # Now we modify the histories
 
@@ -1784,7 +1735,6 @@ class TymeTracker:
         """
         data = self.load()
         project_ids = list() # list of project ids to display
-        # first = True
         detailed_view = False
 
         if len(sys.argv) < 3:
@@ -1903,11 +1853,7 @@ class TymeTracker:
                 else:
                     running_comment = f"{bcolors.CYAN}{comment}{bcolors.END}"
 
-
-                #print("              {sd}{started:5} - {stopped:11}{hhmm:7}({hf:1.2f} hours)      tracking              {c}".format(sd=str_day, started=running_since_time, stopped=time_stopped, hhmm=hhmm, hf=hf, c = running_comment))
-                #
                 print(f"              {str_day}{time_started:5} - {time_stopped:11}{hhmm:7}({hf:1.2f} hours){str_day_total}      {running_comment}")
-
 
             if detailed_view:
                 print(f"              Total time tracked: {total:9.2f} hours")
