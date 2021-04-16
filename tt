@@ -559,13 +559,30 @@ class TymeTracker:
         current_version = from_version
         while current_version < to_version:
             if current_version == 1:
+                # This first upgrade changes the data structure significantly
+                # and introduces some new features:
+                #   1.  Keep track of the last project used. This allows to
+                #       support the "resume" command
+                #   2.  Support for logging pause times. There is now a
+                #       special project "p"/"Pause" where these times are
+                #       tracked
+                #   3.  Support to log actions
                 data["meta"]["file_version"] = 2
                 data["meta"]["last_project"] = None
-                data["config"] = {"log_pause_times": True, "log_actions": True,}
-                data["projects"]["p"] = {"name": "Pause", "history": []}
+                data["config"] = {
+                        "log_pause_times": True,
+                        "log_actions": True,
+                        }
+                # This is the special project "Pause".
+                # This project is used for pause/resume timekeeping.
+                data["projects"]["p"] = {
+                        "name": "Pause",
+                        "history": []
+                        }
                 data["log"] = []
 
             if current_version == 2:
+                # The upgrade from version 2 introduces support for comments
                 data["meta"]["file_version"] = 3
                 data["tracking"]["comment"] = None  # Comments are stored here (as str)
 
@@ -587,6 +604,8 @@ class TymeTracker:
                     data["projects"][project_id]["history"] = new_history
 
             if current_version == 3:
+                # This update from version 3 to version 4 introduces support
+                # for user defined alias commands
                 data["meta"]["file_version"] = 4
                 data["aliases"] = {
                         "st": "status",
@@ -657,15 +676,15 @@ class TymeTracker:
             print(f"Initializing new data file {f}")
 
             # Initialize new data dict
+            # For sake of simplicity we create a very basic structure here
+            # representing the original first version of the data file.
+            # Afterwards we manually call self._file_version_upgrade() to
+            # update the structure to the latest data file version.
+
             data = {
                     "meta": {
                         "last_id": 0,
-                        "file_version": 5,
-                        "last_project": None,
-                        },
-                    "config": {
-                        "log_pause_times": True,
-                        "log_actions": True,
+                        "file_version": 1,
                         },
                     "tracking": {
                         "active": False,
@@ -673,34 +692,17 @@ class TymeTracker:
                         "started": None,
                         "comment": None,
                         },
-                    "aliases": {
-                        "st": "status",
-                        "a": "add",
-                        "d": "delete",
-                        "l": "list",
-                        "ch": "change",
-                        "c": "comment",
-                        "p": "pause",
-                        "r": "resume",
-                        "s": "show",
-                        "sw": "switch",
-                    },
                     "projects": {
                         # id:    {
                             # "name": Projektname,
                             # "history": [] # elements are tuples (start, stop)
                         # }
                         # },
-
-                        # This is the special project "Pause".
-                        # This project is used for pause/resume timekeeping.
-                        "p": {
-                            "name": "Pause",
-                            "history": [],
-                            }
-                        },
-                    "log": [],
                     }
+                    }
+
+            # ... convert it to the newest version
+            data = self._file_version_upgrade(data)
 
             # ... and write it to data file
             self.save(data, "Initialized new data file")
