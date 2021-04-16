@@ -17,9 +17,10 @@
 #    6  Could not import required python module
 #    7  Exception while saving/writing data to data file
 #   10  Project's name or ID not specified when trying to add a new project
-#   11  Project's name or ID not specified when trying to delete/rename p.
+#   11  Project's name or ID not specified
 #   12  Project with given name or ID could not be found
 #   13  Not allowed to alter special project
+#   14  Default project not set
 #   20  Project's name or ID not specified when trying to start tracker
 #   21  Tracker already started
 #   22  No tracker found
@@ -47,7 +48,7 @@ class TymeTracker:
 
 
     # This variable defines the format version of the datafile
-    DATAFILE_VERSION = 5
+    DATAFILE_VERSION = 6
 
     # Set variables we need
     f = os.path.abspath(os.path.expanduser(datafile))
@@ -642,6 +643,15 @@ class TymeTracker:
 
                 data["projects"]["p"]["history"] = new_history
 
+            if current_version == 5:
+                # The upgrade from version 5 to version 6 introduces the
+                # default_project setting in the meta section of the data
+                # file allowing to just use "tt start" to track times for
+                # this default project - if set
+                data["meta"]["file_version"] = 6
+
+                data["meta"]["default_project"] = None
+
             # increment current_version to carry out next update if needed
             current_version += 1
 
@@ -867,9 +877,11 @@ class TymeTracker:
                 "Projects": {
                     "DESC": "Before you can start a tracker you need to create a project to which this tracker is assigned. These commands allow you to add, delete and manage existing projects.",
                     "add project name": "Add new project with name \"project name\"",
+                    "default 23": "Set project with id 23 as default project",
                     "delete 23": "Delete project with id 23",
                     "list": "List projects and their ids",
                     "rename 23 new name": "Rename project with ID 23 to \"new name\"",
+                    "undefault": "Unset the current default project settings",
                     },
                 "Tracking": {
                     "DESC": "These commands allow to start and stop trackers as well as displaying tracked times in existing projects.",
@@ -1050,10 +1062,15 @@ class TymeTracker:
                 if project_id == "p" and not show_pause_project:
                     continue
 
-                if project_id.isdigit():
-                    print(f"    {bcolors.YELLOW}{project_id:>3}{bcolors.END}   {project_data['name']}")
+                if project_id == data["meta"]["default_project"]:
+                    is_default = f"{bcolors.CYAN}D{bcolors.END}"
                 else:
-                    print(f"    {bcolors.BLUE}{project_id:>3}{bcolors.END}   {project_data['name']}")
+                    is_default = " "
+
+                if project_id.isdigit():
+                    print(f"   {is_default} {bcolors.YELLOW}{project_id:>3}{bcolors.END}   {project_data['name']}")
+                else:
+                    print(f"   {is_default} {bcolors.BLUE}{project_id:>3}{bcolors.END}   {project_data['name']}")
 
 
     def add_project(self) -> None:
@@ -1145,6 +1162,49 @@ class TymeTracker:
             self.save(data, msg)
 
 
+    def set_default_project(self) -> None:
+        """This function sets a project as default project.
+
+        This allows the use of "tt start" without specifying a project
+        number: If no project number is specified and a default_project is
+        set time will be tracked for this project.
+        """
+        if len(sys.argv) < 3:
+            print("You must specify a project id or project name")
+            self.list_projects()
+            sys.exit(11)
+
+        data = self.load()
+        project_id = self._get_project_id(data, sys.argv[2])
+
+        if project_id not in data.get("projects", {}):
+            print(f"Project {bcolors.YELLOW}{project_id}{bcolors.END} not found")
+            sys.exit(12)
+        elif not project_id.isdigit():
+            print(f"Not allowed to set special project {self._project_name(data, project_id)} as default project")
+        else:
+            data["meta"]["default_project"] = project_id
+            msg = f"Set project {self._project_name(data, project_id)} as default project"
+            print(msg)
+            self.save(data, msg)
+
+
+    def unset_default_project(self) -> None:
+        """This function sets th default_project setting in the meta section
+        of the data file to None meaning that there will be not default
+        project afterwars.
+        """
+        data = self.load()
+        default_project = data["meta"]["default_project"]
+        if default_project is None:
+            print("No default project set")
+        else:
+            data["meta"]["default_project"] = None
+            msg = f"Removed {self._project_name(data, default_project)} as default project"
+            print(msg)
+            self.save(data, msg)
+
+
     #############################################################################
     ### Time tracking
     #############################################################################
@@ -1165,13 +1225,20 @@ class TymeTracker:
         :param project_id:  ID of project
         :type project_id:   str
         """
-        if project_id is None and len(sys.argv) < 3:
-            print("You must specify a project id")
-            list_projects()
-            sys.exit(20)
-
         data = self.load()
-        if project_id is None:
+
+        if len(sys.argv) < 3:
+            # We did not receive a project ID from the command line
+            if data["meta"]["default_project"] is None:
+                print("You must specify a project id or set a default project")
+                self.list_projects()
+                sys.exit(20)
+            else:
+                project_id = data["meta"]["default_project"]
+        else:
+            # Take the received argument as project ID regardless of the
+            # default_project set in the meta section of the data file.
+            # This allows to track times for other projects as well. :)
             project_id = self._get_project_id(data, sys.argv[2])
 
         if not project_id.isdigit():
@@ -2136,6 +2203,11 @@ class TymeTracker:
             self.csv()
         elif cmd == "tab":
             self.csv(table = True)
+
+        elif cmd == "default":
+            self.set_default_project()
+        elif cmd == "undefault":
+            self.unset_default_project()
 
         elif cmd == "pause":
             self.pause_tracking()

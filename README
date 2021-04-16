@@ -48,9 +48,11 @@ Projects
      Before you can start a tracker you need to create a project to which this tracker is assigned. These commands allow you to add, delete and manage existing projects.
 
 add project name     Add new project with name "project name"
+default 23           Set project with id 23 as default project
 delete 23            Delete project with id 23
 list                 List projects and their ids
 rename 23 new name   Rename project with ID 23 to "new name"
+undefault            Unset the current default project settings
 
 
 Tracking
@@ -107,6 +109,9 @@ We will add a project called "work". Then a tracker will be started,
 pause, resumed und finally stopped - by an alias that has been created.
 This example shows also the reporting output for the tracked project time.
 
+  % tt init
+  Initializing new data file /Users/fallenbeck/.tt.json
+  Converted data file format from version 1 to version 6
   % tt add work
   Created project 1: "work"
   % tt start work
@@ -140,6 +145,18 @@ This example shows also the reporting output for the tracked project time.
                 Total time tracked:      0.03 hours
   % tt unalias stopit
   Removed alias stopit for stop
+  % tt start   
+  You must specify a project id or set a default project
+         1   work
+         p   Pause
+  % tt default work
+  Set project 1: "work" as default project
+  % tt start       
+  Tracker started for project 1: "work"
+  % tt stop 
+  Tracker stopped for project 1: "work" after 00:00 (0.00 hours)
+  % tt undefault
+  Removed 1: "work" as default project
 
 
 
@@ -222,9 +239,10 @@ Code  Meaning
    6  Could not import required python module
    7  Exception while saving/writing data to data file
   10  Project's name or ID not specified when trying to add a new project
-  11  Project's name or ID not specified when trying to delete/rename p.
+  11  Project's name or ID not specified
   12  Project with given name or ID could not be found
   13  Not allowed to alter special project
+  14  Default project not set
   20  Project's name or ID not specified when trying to start tracker
   21  Tracker already started
   22  No tracker found

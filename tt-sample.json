@@ -1,42 +1,20 @@
 {
   "meta": {
-    "last_id": 3,
-    "file_version": 5,
-    "last_project": "1"
+    "last_id": 0,
+    "file_version": 6,
+    "last_project": null,
+    "default_project": null
   },
   "tracking": {
-    "started": "2017-08-07T07:15:23",
-    "project": "1",
-    "active": true,
+    "active": false,
+    "project": null,
+    "started": null,
     "comment": null
   },
   "projects": {
-    "1": {
-      "history": [
-        [
-          "2017-07-31T07:53:24",
-          "2017-07-31T16:58:26"
-        ]
-      ],
-      "name": "Project one"
-    },
-    "2": {
-      "history": [],
-      "name": "Second project"
-    },
-    "3": {
-      "name": "freelance",
-      "history": []
-    },
     "p": {
       "name": "Pause",
-      "history": [
-        [
-          "2019-03-14T01:06:33",
-          "2019-03-14T01:06:39",
-          "Ein Testkommentar"
-        ]
-      ]
+      "history": []
     }
   },
   "config": {
@@ -44,13 +22,12 @@
     "log_actions": true
   },
   "log": [
-    "2019-03-14 01:06:23  Converted data file format from version 1 to version 2",
-    "2019-03-14 01:06:29  Tracker started for project \u001b[93m3\u001b[0m: \"Test\"",
-    "2019-03-14 01:06:33  Paused tracker for project \u001b[93m3\u001b[0m: \"Test\" after 00:00 (0.00 hours)",
-    "2019-03-14 01:06:39  Resumed tracker for project \u001b[93m3\u001b[0m: \"Test\" after pause of 00:00 (0.00 hours)",
-    "2019-03-14 01:06:41  Tracker stopped for project \u001b[93m3\u001b[0m: \"Test\" after 00:00 (0.00 hours)"
+    "2021-04-16 11:22:44  Converted data file format from version 1 to version 6",
+    "2021-04-16 11:22:44  Initialized new data file"
   ],
   "aliases": {
+    "st": "status",
+    "a": "add",
     "d": "delete",
     "l": "list",
     "ch": "change",
@@ -58,8 +35,6 @@
     "p": "pause",
     "r": "resume",
     "s": "show",
-    "sw": "switch",
-    "a": "add",
-    "st": "status"
+    "sw": "switch"
   }
 }
