@@ -1300,7 +1300,7 @@ class TymeTracker:
             history.append( (started, stopped, comment) )
             data["projects"][project_id]["history"] = history
 
-            msg = f"Tracker stopped for project {self._project_name(data, project_id)} after {hhmm} ({hf:1.2f} hours)"
+            msg = f"Time tracker stopped for project {self._project_name(data, project_id)} after {hhmm} ({hf:1.2f} hours)"
 
             if comment:
                 msg += f": \"{comment}\""
@@ -1309,7 +1309,7 @@ class TymeTracker:
             # We have to deal with an entry we cannot read (and parse) correctly.
             # This might happen if the tracker refers to a non-existing project
             # ID. We should simply deactivate the tracker.
-            msg = f"Tracker stopped but an error occurred: {e}".format(e)
+            msg = f"Time tracker stopped but an error occurred: {e}".format(e)
 
         # Save the project_id as last_project (if it is a normal project)
         if project_id.isdigit():
@@ -1321,7 +1321,28 @@ class TymeTracker:
         data["tracking"]["started"] = None
         data["tracking"]["comment"] = None
 
+        # Print the message 
         print(msg)
+
+        # Time tracked today in this particular project
+        # only if there is something additional to display
+        today, _ = self._to_day_and_time(self._timestamp())
+        today_slots_in_project = self._get_trackings(data, project_id, today)
+        today_slots = today_slots_in_project.get(project_id, [])
+        if len(today_slots):
+            seconds = 0
+            for tracking in today_slots:
+                start, stop, comment = tracking
+                s, _, _ = self._time_diff(start, stop)
+                seconds += s
+
+            hf = self._convert_seconds_to_hf(seconds)
+            hhmm = self._convert_seconds_to_hhmm(seconds)
+
+            print(f"Total time tracked today in project {self._project_name(data, project_id)} is {hhmm} ({hf:0.2f} hours)")
+
+
+        # Finally, save the data
         self.save(data, msg)
 
 
