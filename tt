@@ -1447,8 +1447,14 @@ class TymeTracker:
 
     def pause_add(self,
             arguments: list,
+            append_pause_time: bool = False,
             ) -> None:
-        """
+        """Add a pause to an already recored time slice.
+
+        :param arguments:   Arguments provided from the command line
+        :type arguments:    [str]
+        :param append_pause_time:   Should pause time appended to recorded time period
+        :type append_pause_time:    bool
         """
         #print("Add pause arguments: {}".format(arguments))
 
@@ -1463,7 +1469,17 @@ class TymeTracker:
                                             will be added)
                     23                      project's number or name
                     2019-03-14T09:46:26     add pause to period that starts at
-                                            this point in time
+                                            this point in time (uses prefix matching
+                                            so there is no need to provide a full
+                                            timestamp but you can also give
+                                            "2019-03-14" if there is only one
+                                            recorded time period on 14th of March
+                                            in 2019
+                    [append]                (optional) keyword that specifies that
+                                            the pause priod will be added to the
+                                            already recorded time period by moving
+                                            the recorded end into the future (by
+                                            the duration of the pause)
                 """)
             sys.exit(1)
 
@@ -1501,6 +1517,12 @@ class TymeTracker:
             defined by 2 integers a and b in the form of a-b""")
             sys.exit(2)
 
+        # If the optional keyword "append" as fourth argument is provided
+        # set append_pause_time to True in order to move the recorded
+        # time period's end into the future later on
+        if len(arguments) == 4 and arguments[3].lower() == "append":
+            append_pause_time = True
+
         # Load data
         data = self.load()
 
@@ -1513,7 +1535,7 @@ class TymeTracker:
             sys.exit(2)
 
         # Get the start time stamp of the logged period
-        period_start = "T".join(arguments[2:])
+        period_start = arguments[2]
 
         # Get the tracked periods of the particular project and find a period that
         # starts with period_start
@@ -1551,11 +1573,23 @@ class TymeTracker:
         # We divide the period exactly in the middle
         pause_time = original_duration / 2
 
-        # Create the missing time stamps
-        first_start = original_start
-        first_end = original_start + pause_time
-        second_start = first_end + datetime.timedelta(minutes = pause_minutes, seconds = pause_seconds)
-        second_end = second_start + pause_time
+        # How to treat the pause time
+        if append_pause_time:
+            # If we want to append the pause time to the already recorded
+            # period we need to shift the second slice into the future
+            first_start = original_start
+            first_end = original_start + pause_time
+            second_start = first_end + datetime.timedelta(minutes = pause_minutes, seconds = pause_seconds)
+            second_end = second_start + pause_time
+
+        else:
+            # The pause time should not be appended to the already
+            # recorded time slice meaning that the second slice
+            # will be shortened by the amount of time added as a pause.
+            first_start = original_start
+            first_end = original_start + pause_time
+            second_start = first_end + datetime.timedelta(minutes = pause_minutes, seconds = pause_seconds)
+            second_end = original_end
 
         first_period = [
                 datetime.datetime.strftime(first_start, self.dateformat),
