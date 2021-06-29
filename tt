@@ -931,7 +931,17 @@ class TymeTracker:
                 group["Aliases"] = dict_of_aliases
         else:
             group["Aliases"] = {
-                    "DESC": "Aliases defined in the data file - NOTE: Aliases could not be loaded since data file has not been initialized yet"
+                    "DESC": "Aliases defined in the data file",
+                    "         !":           "To load the aliases you must run \"tt init\" first.",
+                    "        ! !":          "Aliases can be defined by the user and are stored in the",
+                    "       !   !":         "data file. This file is not yet initialized. That is the",
+                    "      !     !":        "reason why we cannot display any meaningful information",
+                    "     !  !!!  !":       "here.",
+                    "    !   !!!   !":      "However... You can change that - of course.",
+                    "   !           !":     "As shown above (in the \"Generic Commands\") you simply",
+                    "  !     !!!     !":    "need to type \"tt init\" to initialize your very personal",
+                    " !               !":   "data file in your home directory. Try it and play around.",
+                    "!!!!!!!!!!!!!!!!!!!":  "Start getting things done. And track your time. (Of course.)"
                     }
 
         return group
