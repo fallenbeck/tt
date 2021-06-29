@@ -576,27 +576,26 @@ class TymeTracker:
                 #       special project "p"/"Pause" where these times are
                 #       tracked
                 #   3.  Support to log actions
-                data["meta"]["file_version"] = 2
                 data["meta"]["last_project"] = None
                 data["config"] = {
                         "log_pause_times": True,
                         "log_actions": True,
                         }
+
                 # This is the special project "Pause".
                 # This project is used for pause/resume timekeeping.
                 data["projects"]["p"] = {
                         "name": "Pause",
                         "history": []
                         }
+
                 data["log"] = []
 
             if current_version == 2:
                 # The upgrade from version 2 introduces support for comments
-                data["meta"]["file_version"] = 3
                 data["tracking"]["comment"] = None  # Comments are stored here (as str)
 
                 for project_id, project_data in data["projects"].items():
-
                     # We need to build a new history for every project
                     # The old history contains 2-tuples with the start time
                     # and the end time of the tracker, the new history
@@ -615,7 +614,6 @@ class TymeTracker:
             if current_version == 3:
                 # This update from version 3 to version 4 introduces support
                 # for user defined alias commands
-                data["meta"]["file_version"] = 4
                 data["aliases"] = {
                         "st": "status",
                         "a": "add",
@@ -634,7 +632,6 @@ class TymeTracker:
                 # We had a problem in the resume_tracking() function that
                 # prevented the comment from being written to the pause project's
                 # history. This would case an error when show() is called.
-                data["meta"]["file_version"] = 5
 
                 # We need to rebuild the history again.
                 # This time, only the pause project (ID: p) is affected.
@@ -656,12 +653,12 @@ class TymeTracker:
                 # default_project setting in the meta section of the data
                 # file allowing to just use "tt start" to track times for
                 # this default project - if set
-                data["meta"]["file_version"] = 6
-
                 data["meta"]["default_project"] = None
 
             # increment current_version to carry out next update if needed
+            # and store it to the meta section of the data file
             current_version += 1
+            data["meta"]["file_version"] = current_version
 
         msg = f"Converted data file format from version {from_version} to version {to_version}"
         self.save(data, msg)
