@@ -36,6 +36,7 @@ Generic commands
 alias a command      Create or updates alias a for a particular command
 aliases              Shows list of all defined aliases
 cleanup              Cleanup and reorganize data file
+help                 Display this help
 init                 Initialize new data file
 log                  Show activity log
 log disable          Disable activity log
@@ -72,6 +73,14 @@ stop                 Stop active time tracking
 switch 23            Switch a tracker to a new project by stopping it and starting a new
 
 
+Hooks
+     Hooks are (shell) commands to be executed if a user uses particular commands
+
+hook add start date  Run the shell command "date" if the user uses "tt start ..."
+hook del start       Removes the hook command execute when "tt start ..." is used
+hooks                List all supported hooks and the current configuration
+
+
 Summarizing
      These commands display the time tracked in different ways.
 
@@ -96,7 +105,6 @@ r                    resume
 s                    show
 st                   status
 sw                   switch
-
 
 
 Examples
