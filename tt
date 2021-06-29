@@ -46,9 +46,8 @@ class TymeTracker:
     datafile = "~/.tt.json"
     dateformat = "%Y-%m-%dT%H:%M:%S"
 
-
     # This variable defines the format version of the datafile
-    DATAFILE_VERSION = 6
+    DATAFILE_VERSION = 7
 
     # Set variables we need
     f = os.path.abspath(os.path.expanduser(datafile))
@@ -655,6 +654,21 @@ class TymeTracker:
                 # this default project - if set
                 data["meta"]["default_project"] = None
 
+            if current_version == 6:
+                # This upgrade to file version 7 extends the data structure
+                # to support hooks.
+                hooks = {
+                        "start": None,
+                        "stop": None,
+                        "pause": None,
+                        "resume": None,
+                        "reset": None,
+                        "cancel": None,
+                        "change": None,
+                        "switch": None
+                        }
+                data["hooks"] = hooks
+
             # increment current_version to carry out next update if needed
             # and store it to the meta section of the data file
             current_version += 1
@@ -912,6 +926,12 @@ class TymeTracker:
                     "cancel": "Cancel active tracker and dismiss time",
                     "reset": "Reset time of active tracker",
                     "comment comment": "Add \"comment\" to the current active tracker",
+                    },
+                "Hooks": {
+                    "DESC": "Hooks are (shell) commands to be executed if a user uses particular commands",
+                    "hook add start date": "Run the shell command \"date\" if the user uses \"tt start ...\"",
+                    "hook del start": "Removes the hook command execute when \"tt start ...\" is used",
+                    "hooks": "List all supported hooks and the current configuration",
                     },
                 "Summarizing": {
                     "DESC": "These commands display the time tracked in different ways.",
@@ -1233,6 +1253,154 @@ class TymeTracker:
             msg = f"Removed {self._project_name(data, default_project)} as default project"
             print(msg)
             self.save(data, msg)
+
+
+    #############################################################################
+    ### Hooks functions
+    #############################################################################
+
+    # "Whitelist" of hook states supported by tt
+    valid_hook_states = ["start", "stop", "pause", "resume", "reset", "cancel", "change", "switch"]
+
+
+    def list_hooks(self) -> None:
+        """List all possible and currently defined hooks.
+        """
+        data = self.load()
+        hooks = data.get("hooks", {})
+
+        print("Current hook command configuration:")
+        for state in self.valid_hook_states:
+            cmd = hooks.get(state, None)
+            print(f"  {state:6s}    {cmd}")
+
+
+    def hook_dispatch(self) -> None:
+        """Dispatch function for the hook command subtree.
+
+        If "tt hook ..." is specified by the user this function
+        will be called and will call another function depending on
+        the arguments given on the command line.
+        """
+        if sys.argv[2].strip().lower() == "add":
+            self.add_hook(
+                    hook_state = sys.argv[3],
+                    cmd = " ".join(sys.argv[4:]),
+                    )
+
+        elif sys.argv[2].strip().lower() == "del":
+            self.del_hook(
+                    hook_state = sys.argv[3],
+                    )
+
+
+    def add_hook(self,
+            hook_state: str,
+            cmd: str,
+            ) -> None:
+        """Add a hook command for a given tt command to be executed when
+        this tt command is called by the user.
+
+        Existing commands will simply be overwritten by this function.
+
+        :param hook_state:  tt command (see self.valid_hook_states)
+        :type hook_state:   str
+        :param cmd:         Command to execute
+        :type cmd:          str
+        """
+        state = hook_state.strip().lower()
+
+        if state not in self.valid_hook_states:
+            print(f"Invalid hook state: {hook_state}. Valid states are: {self.valid_hook_states}")
+            return
+
+        # At this point we simply overwrite any existing command
+        # and store it to the data file
+        data = self.load()
+        data["hooks"][state] = cmd
+        self.save(data)
+
+        # If cmd is None this function as been called from within del_hook()
+        if cmd is None:
+            print(f"Deleted hook command for state {state}")
+        else:
+            print(f"Added hook command for state {state}: {cmd}")
+
+
+    def del_hook(self,
+            hook_state: str,
+            ) -> None:
+        """Delete a hook command for a certain state.
+
+        It will overwrite the existing command with None.
+
+        :param hook_state:  tt command (see self.valid_hook_states)
+        :type hook_state:   str
+        """
+        # We can simply use the add_hook() function and provide
+        # None as cmd.
+        self.add_hook(
+                hook_state = hook_state,
+                cmd = None,
+                )
+
+    def exec_hook(self,
+            hook_state: str,
+            ) -> None:
+        """Function that executes a hook command for a particular state.
+
+        If a user has defined a hook command for a certain command this
+        command will be executed by this function.
+        This function supports interaction with the command, i.e. when
+        using sudo and sudo asks the user for a password.
+
+        :param hook_state:  tt command (see self.valid_hook_states)
+        :type hook_state:   str
+        """
+        # First check if the hook_state is in the list of valid hook states.
+        # If not, simply return
+        state = hook_state.strip().lower()
+        if state not in self.valid_hook_states:
+            return
+
+        # Afterwards we need to thet the hook command for this state.
+        # If the command is None (which is the default if no command is
+        # defined) we can simply return here.
+        data = self.load()
+        cmd = data.get("hooks", {}).get(state, None)
+        if cmd is None:
+            return
+
+        # We have found a defined hook command that needs to be executed.
+        # The command will behave like directly executed by the user, i.e.
+        # if the user needs to enter something (s)he will be able to enter
+        # it also when this command is executed by this function
+        print(f">--- START hook command: \"{cmd}\" ---<")
+        import subprocess
+        proc = subprocess.Popen(
+                cmd,
+                shell = True,
+                stdout = subprocess.PIPE,
+                stderr = subprocess.PIPE,
+                stdin = subprocess.PIPE,
+                )
+
+        try:
+            stdout, stderr = proc.communicate(timeout = 60)
+        except:
+            proc.kill()
+            stdout, stderr = proc.communicate()
+
+        proc.wait()
+
+        if len(stdout) > 0:
+            print(stdout.decode().strip())
+        if len(stderr) > 0:
+            print(stderr.decode().strip())
+
+        returncode = proc.returncode
+        print(f">--- STOPPED hook command: \"{cmd}\" (Exit code: {returncode}) ---<")
+
 
 
     #############################################################################
@@ -2298,22 +2466,35 @@ class TymeTracker:
 
         elif cmd == "pause":
             self.pause_tracking()
+            self.exec_hook("pause")
         elif cmd == "resume":
             self.resume_tracking()
+            self.exec_hook("resume")
         elif cmd == "start":
             self.start_tracking()
+            self.exec_hook("start")
         elif cmd == "stop":
             self.stop_tracking()
+            self.exec_hook("stop")
         elif cmd == "switch":
             self.switch_tracking()
+            self.exec_hook("switch")
         elif cmd == "change":
             self.change_tracking()
+            self.exec_hook("change")
         elif cmd == "cancel":
             self.cancel_tracking()
+            self.exec_hook("cancel")
         elif cmd == "reset":
             self.reset_tracking()
+            self.exec_hook("reset")
         elif cmd == "comment":
             self.add_comment()
+
+        elif cmd == "hooks":
+            self.list_hooks()
+        elif cmd == "hook":
+            self.hook_dispatch()
 
         elif cmd == "week":
             self.week()
