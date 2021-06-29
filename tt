@@ -457,6 +457,14 @@ class TymeTracker:
     ### Data file functions
     #############################################################################
 
+    def datafile_exists(self) -> bool:
+        """Check if data file exists.
+
+        :return:    True if data file exists, False otherwise
+        :rtype:     bool
+        """
+        return os.path.isfile(self.f)
+
     def load(self) -> dict:
         """Load data file contents.
 
@@ -836,6 +844,15 @@ class TymeTracker:
         :return:    Command name that should be carried out
         :rtype:     str or None
         """
+        # If the user provides "help" as command we simply return this
+        # keyword
+        if command_or_alias.strip().lower() == "help":
+            return "help"
+
+        # If we receive a different keyword we need to process it and
+        # look up aliases in the data file.
+        # NOTE: This needs the data file to be initialized. If it is
+        #       not yet initialized tt will display an error.
         data = self.load()
         commands = self.get_commands()
 
@@ -864,6 +881,7 @@ class TymeTracker:
         group = {
                 "Generic commands": {
                     "DESC": f"Commands to initialize {self.my_name} and perform management tasks.",
+                    "help": "Display this help",
                     "init": "Initialize new data file",
                     "status": "Display tracker status information",
                     "cleanup": "Cleanup and reorganize data file",
@@ -909,10 +927,15 @@ class TymeTracker:
                     }
                 }
 
-        dict_of_aliases = self.get_aliases()
-        if len(dict_of_aliases):
-            dict_of_aliases["DESC"] = "Aliases defined in the data file"
-            group["Aliases"] = dict_of_aliases
+        if self.datafile_exists():
+            dict_of_aliases = self.get_aliases()
+            if len(dict_of_aliases):
+                dict_of_aliases["DESC"] = "Aliases defined in the data file"
+                group["Aliases"] = dict_of_aliases
+        else:
+            group["Aliases"] = {
+                    "DESC": "Aliases defined in the data file - NOTE: Aliases could not be loaded since data file has not been initialized yet"
+                    }
 
         return group
 
@@ -2230,7 +2253,9 @@ class TymeTracker:
 
         cmd = self.parse_command(sys.argv[1].lower())
 
-        if cmd == "status":
+        if cmd == "help":
+            self.usage()
+        elif cmd == "status":
             self.status()
         elif cmd == "log":
             self.print_log()
