@@ -63,7 +63,7 @@ cancel               Cancel active tracker and dismiss time
 change 23            Chance project assigned to an active tracker
 comment comment      Add "comment" to the current active tracker
 pause                Pause an active tracker
-pause add 30[-50] 23 2019-03-14T09:46:26 [append] Add a pause of 30 minutes (or a random duration between 30 and 50 minutes) to the project 23's time period started on 2019-03-14 09:46:26. If "append" the recorded work time will not be reduced by the pause's duration.
+pause add 30[-50] 23 2019-03-14T09:46:26 [append] Add a pause of 30 minutes (or a random duration between 30 and 50 minutes) to the project 23's time period started on 2019-03-14 09:46:26. If "append" the recorded work time will not be reduced by the pause's duration. IMPORTANT: You cannot add a pause to a currently active tracker (resulting in the error message "Could not find time period"). First stop the active tracker and add the pause afterwards.
 pause disable        Disable tracking of pause times
 pause enable         Enable tracking of pause times
 reset                Reset time of active tracker
@@ -235,8 +235,18 @@ install PrettyTable using pip3:
 
 
 
+Troubleshooting
+===============
+
+Error "Could not find time period" when trying to add pause
+-----------------------------------------------------------
+Pauses cannot be added to currently running tracking periods. Before you can add
+a pause you first need to stop the current tracker.
+
 Exit Codes
-==========
+----------
+Having a look at tt's exit code might be helpful in some cases. The following
+exit codes are defined:
 
 Code  Meaning
 -----+---------------------------------------------------------------------
@@ -263,6 +273,7 @@ Code  Meaning
   32  Alias not found
   42  Disabled in local configuration
   50  No comment given
+
 
 
 Contact

@@ -891,7 +891,8 @@ class TymeTracker:
         """
         group = {
                 "Generic commands": {
-                    "DESC": f"Commands to initialize {self.my_name} and perform management tasks.",
+                    "DESC": f"Commands to initialize {self.my_name} and " \
+                            "perform management tasks.",
                     "help": "Display this help",
                     "init": "Initialize new data file",
                     "status": "Display tracker status information",
@@ -900,47 +901,80 @@ class TymeTracker:
                     "log enable": "Enable activity log",
                     "log disable": "Disable activity log",
                     "aliases": "Shows list of all defined aliases",
-                    "alias a command": "Create or updates alias a for a particular command",
+                    "alias a command": "Create or updates alias a for a " \
+                            "particular command",
                     "unalias a": "Remove alias a",
                     },
+
                 "Projects": {
-                    "DESC": "Before you can start a tracker you need to create a project to which this tracker is assigned. These commands allow you to add, delete and manage existing projects.",
-                    "add project name": "Add new project with name \"project name\"",
+                    "DESC": "Before you can start a tracker you need to " \
+                            "create a project to which this tracker is " \
+                            "assigned. These commands allow you to add, " \
+                            "delete and manage existing projects.",
+                    "add project name": "Add new project with " \
+                            "name \"project name\"",
                     "default 23": "Set project with id 23 as default project",
                     "delete 23": "Delete project with id 23",
                     "list": "List projects and their ids",
-                    "rename 23 new name": "Rename project with ID 23 to \"new name\"",
+                    "rename 23 new name": "Rename project with ID 23 " \
+                            "to \"new name\"",
                     "undefault": "Unset the current default project settings",
                     },
+
                 "Tracking": {
-                    "DESC": "These commands allow to start and stop trackers as well as displaying tracked times in existing projects.",
+                    "DESC": "These commands allow to start and stop trackers " \
+                            "as well as displaying tracked times in existing " \
+                            "projects.",
                     "start 23": "Start time tracking for project id 23",
                     "stop": "Stop active time tracking",
                     "pause": "Pause an active tracker",
-                    "pause add 30[-50] 23 2019-03-14T09:46:26 [append]":  "Add a pause of 30 minutes (or a random duration between 30 and 50 minutes) to the project 23's time period started on 2019-03-14 09:46:26. If \"append\" the recorded work time will not be reduced by the pause's duration.",
+                    "pause add 30[-50] 23 2019-03-14T09:46:26 [append]": "Add "\
+                            "a pause of 30 minutes (or a random duration " \
+                            "between 30 and 50 minutes) to the project 23's " \
+                            "time period started on 2019-03-14 09:46:26. " \
+                            "If \"append\" the recorded work time will not " \
+                            "be reduced by the pause's duration. " \
+                            "IMPORTANT: You cannot add a pause to a " \
+                            "currently active tracker (resulting in the " \
+                            "error message \"Could not find time period\"). " \
+                            "First stop the active tracker and add the pause " \
+                            "afterwards.",
                     "pause disable": "Disable tracking of pause times",
                     "pause enable": "Enable tracking of pause times",
-                    "resume": "Resume tracker from paused project or from last project used",
-                    "switch 23": "Switch a tracker to a new project by stopping it and starting a new",
+                    "resume": "Resume tracker from paused project or from " \
+                            "last project used",
+                    "switch 23": "Switch a tracker to a new project by " \
+                            "stopping it and starting a new",
                     "change 23": "Chance project assigned to an active tracker",
                     "cancel": "Cancel active tracker and dismiss time",
                     "reset": "Reset time of active tracker",
-                    "comment comment": "Add \"comment\" to the current active tracker",
+                    "comment comment": "Add \"comment\" to the current " \
+                            "active tracker",
                     },
+
                 "Hooks": {
-                    "DESC": "Hooks are (shell) commands to be executed if a user uses particular commands",
-                    "hook add start date": "Run the shell command \"date\" if the user uses \"tt start ...\"",
-                    "hook del start": "Removes the hook command execute when \"tt start ...\" is used",
-                    "hooks": "List all supported hooks and the current configuration",
+                    "DESC": "Hooks are (shell) commands to be executed " \
+                            "if a user uses particular commands",
+                    "hook add start date": "Run the shell command \"date\" " \
+                            "if the user uses \"tt start ...\"",
+                    "hook del start": "Removes the hook command execute " \
+                            "when \"tt start ...\" is used",
+                    "hooks": "List all supported hooks and the current " \
+                            "configuration",
                     },
+
                 "Summarizing": {
-                    "DESC": "These commands display the time tracked in different ways.",
+                    "DESC": "These commands display the time tracked in " \
+                            "different ways.",
                     "csv 23": "Show tracked times as CSV",
                     "show": "Show tracked times for all projects",
-                    "show 23": "Show tracked times and some additional information for project 23",
+                    "show 23": "Show tracked times and some additional " \
+                            "information for project 23",
                     "tab 23": "Show tracked times in a pretty table format",
-                    "week": "Show a report of the time tracked in the current week",
-                    "week 23": "Show the time tracked for project 23 in the current week",
+                    "week": "Show a report of the time tracked in the " \
+                            "current week",
+                    "week 23": "Show the time tracked for project 23 in " \
+                            "the current week",
                     }
                 }
 
